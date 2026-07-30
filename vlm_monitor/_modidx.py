@@ -10,4 +10,7 @@ d = { 'settings': { 'branch': 'main',
                                   'vlm_monitor.core.Run': ('core.html#run', 'vlm_monitor/core.py'),
                                   'vlm_monitor.core.RunFrame': ('core.html#runframe', 'vlm_monitor/core.py'),
                                   'vlm_monitor.core.Video': ('core.html#video', 'vlm_monitor/core.py'),
-                                  'vlm_monitor.core.init_db': ('core.html#init_db', 'vlm_monitor/core.py')}}}
+                                  'vlm_monitor.core.assistant': ('core.html#assistant', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.img2b64': ('core.html#img2b64', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.init_db': ('core.html#init_db', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.user': ('core.html#user', 'vlm_monitor/core.py')}}}
