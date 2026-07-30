@@ -7,6 +7,9 @@ Docs: https://ForBo7.github.io/vlm-monitorcore.html.md"""
 # %% auto #0
 __all__ = ['Video', 'Frame', 'Run', 'RunFrame', 'DBResources', 'init_db']
 
+# %% ../nbs/00_core.ipynb #1654310c
+from fastcore.all import *
+
 # %% ../nbs/00_core.ipynb #22ed8677
 class Video: id:int; title:str=''; overview:str=''; transcript:str=''; length:int=0; sample_rate:int=0
 class Frame: id:int; video_id:int; frame_number:int; subtitle:str=''
@@ -22,7 +25,6 @@ from apswutils.db import Database, Table
 class DBResources(NamedTuple): db:Database; videos:Table; frames:Table; runs:Table; runframes:Table
 
 # %% ../nbs/00_core.ipynb #c0067b7e
-from fastcore.all import *
 def init_db(
     path:str|Path='db.db' # Path to database
 ) -> DBResources:
@@ -34,3 +36,6 @@ def init_db(
     runframes = db.create(RunFrame, pk=['run_id', 'frame_id', 'type'], foreign_keys=[('run_id', 'run', 'id'), ('frame_id', 'frame', 'id')], transform=True)
     return DBResources(db, videos, frames, runs, runframes)
 
+
+# %% ../nbs/00_core.ipynb #6dc5f4be
+from fastllm.types import Msg, Part, PartType
