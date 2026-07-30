@@ -5,4 +5,9 @@ d = { 'settings': { 'branch': 'main',
                 'doc_host': 'https://ForBo7.github.io',
                 'git_url': 'https://github.com/ForBo7/vlm-monitor',
                 'lib_path': 'vlm_monitor'},
-  'syms': {'vlm_monitor.core': {'vlm_monitor.core.foo': ('core.html#foo', 'vlm_monitor/core.py')}}}
+  'syms': { 'vlm_monitor.core': { 'vlm_monitor.core.DBResources': ('core.html#dbresources', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.Frame': ('core.html#frame', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.Run': ('core.html#run', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.RunFrame': ('core.html#runframe', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.Video': ('core.html#video', 'vlm_monitor/core.py'),
+                                  'vlm_monitor.core.init_db': ('core.html#init_db', 'vlm_monitor/core.py')}}}
