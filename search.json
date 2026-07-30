@@ -1,0 +1,702 @@
+[
+  {
+    "objectID": "core.html#一dialog-查询与导航",
+    "href": "core.html#一dialog-查询与导航",
+    "title": "core",
+    "section": "一、Dialog 查询与导航",
+    "text": "一、Dialog 查询与导航\n\n\n\n\n\n\n\n函数\n用途\n\n\n\n\nawait curr_dialog(with_messages=False, dname='') -&gt; dict \\| str\n获取当前 dialog 信息\n\n\nawait view_dlg(dname='', msg_type=None, nums=False, include_output=False, trunc_out=True, trunc_in=False, include_skipped=False) -&gt; str\n整 dialog 的简洁 XML 概览（推荐优先使用）\n\n\nawait find_msgs(re_pattern='', msg_type=None, before=0, after=0, context=0, use_case=False, use_regex=True, only_err=False, only_exp=False, only_chg=False, ids='', limit=None, include_output=True, include_meta=True, as_xml=False, nums=False, trunc_out=False, trunc_in=False, headers_only=False, header_section=None, include_skipped=False, dname='') -&gt; list[dict]\n正则搜索消息；as_xml=True 可获简洁格式\n\n\nawait read_msg(n=-1, relative=True, id=None, view_range=None, nums=False, dname='') -&gt; dict\n按相对/绝对位置读一条消息；n=0+id=精确定位\n\n\nawait view_msg(id, dname='', nums=True, view_range=None, add_to_dlg=False) -&gt; str\n只看消息 content（带行号）\n\n\nawait read_msgid(id, view_range=None, nums=False, dname='', add_to_dlg=False) -&gt; dict\n按 id 读取含元数据与输出的完整消息\n\n\nawait msg_idx(id=None, dname='') -&gt; int\n消息在 dialog 中的绝对索引\n\n\nawait list_dialogs(subpath='', depth=1) -&gt; dict\n列出子路径下的 dialog 和文件夹（文件夹以 / 结尾）\n\n\nawait realpath(subpath='/') -&gt; str\n获取 solveit 子路径的磁盘真实路径\n\n\nawait dialog_link(dname='', msg_id=None) -&gt; HTML\n生成打开 dialog 的可点击链接；直接输出返回的 &lt;a&gt; 标签\n\n\nawait names_containing(s: str)\n查找 IPython 命名空间中包含 s 的名字\n\n\nawait find_dname(dname=None, required=True)\n解析 dialog 名称（从调用栈或显式提供）",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#二消息编辑",
+    "href": "core.html#二消息编辑",
+    "title": "core",
+    "section": "二、消息编辑",
+    "text": "二、消息编辑\n\n编辑工作流\n\n先用 await view_msg(id) 获知当前内容和行号\n选用下方编辑函数\n所有编辑函数均支持 id 为 str（单条）、list[str]（多条）或 'all'（全 dialog）\nupdate_output=True 可编辑输出而非 content\n返回值：单 id → diff 字符串；多 id → [(id, diff), ...]\n\n\n\n字符串替换\nawait msg_str_replace(id, old_str, new_str, start_line=None, end_line=None,\n    n_matches=None, re_filter=None, invert_filter=False, *,\n    update_output=False, dname='', log_changed=False)\n精确替换 old_str → new_str。n_matches 限制次数；re_filter 只作用于匹配该正则的行。\nawait msg_strs_replace(id, old_strs: list[str], new_strs: list[str], ...)\n同时替换多对字符串，一次调用完成。\n\n\n行级编辑\nawait msg_replace_lines(id, start_line, end_line=None, new_content='', ...)\nawait msg_del_lines(id, start_line, end_line=None, re_filter=None, invert_filter=False, ...)\nawait msg_insert_line(id, insert_line, new_str, ...)\n\n\nExhash（hash 验证行编辑器）\nawait msg_lnhashview(id, dname='') -&gt; str\n获取 lineno|hash|content 格式的带地址行。\nawait msg_exhash(id, cmds: list, dname='') -&gt; str\n按 hash 地址执行 ex 风格命令，hash 在每条命令执行前校验。\n地址格式： 12|a3f2|cmd（单行）或 12|a3f2|,15|b1c3|cmd（范围），0|0000| 只能配合 a/i。\n命令： - s/pat/rep/[flags] — 替换（g=全局, i=忽略大小写） - d — 删除 - a / i / c — 追加 / 插入 / 替换（文本紧跟命令后换行，无需 . 结束符） - j — 合并行 - m dest / t dest — 移动 / 复制到目标地址后 - &gt;[n] / &lt;[n] — 缩进 / 反缩进（默认 4 空格） - sort — 排序 - p — 打印（不修改） - g/pat/cmd / g!/pat/cmd — 全局匹配行执行命令\n关键规则： 多条命令从后往前执行（防行号偏移），必须使用 msg_lnhashview 获取地址后立刻编辑。\n\n\nPython 编辑\nawait msg_python(id, code, ...)\n用 Python 代码编辑消息内容，text 变量保存当前 content，最后一个表达式为新 content。",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#三消息增删",
+    "href": "core.html#三消息增删",
+    "title": "core",
+    "section": "三、消息增删",
+    "text": "三、消息增删\nawait add_msg(content, msg_type='note', run=False, *,\n    placement='', id=None, dname='', wait=False, poll=0.5,\n    output='', time_run='', is_exported=0, skipped=0,\n    i_collapsed=0, o_collapsed=0, heading_collapsed=0, pinned=0) -&gt; str\n添加消息，返回新消息 id。placement: add_after/add_before(相对) 或 at_start/at_end(绝对)。 连续添加时，必须将上一次返回的 id 传给下一次的 id，否则顺序反转。\nawait update_msg(id=None, msg=None, dname='', log_changed=False, *,\n    content=None, msg_type=None, output=None, time_run=None,\n    is_exported=None, skipped=None, i_collapsed=None,\n    o_collapsed=None, heading_collapsed=None, pinned=None) -&gt; str\n部分更新消息，只传要改的字段。\nawait del_msg(id=None, dname='', log_changed=False) -&gt; dict\n删除消息。非明确要求不得使用。\nawait copy_msg(ids=None, cut=False, dname='') -&gt; dict\nawait paste_msg(id=None, after=True, dname='') -&gt; dict\n剪切板复制/粘贴，用于在运行中的 dialog 内移动/复制消息。",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#四dialog-生命周期",
+    "href": "core.html#四dialog-生命周期",
+    "title": "core",
+    "section": "四、Dialog 生命周期",
+    "text": "四、Dialog 生命周期\nawait create_or_run_dialog(name, template=True)\nawait stop_dialog(name)\nawait rm_dialog(name)                  # 删除 dialog 或文件夹，停止内核\nawait load_dialog(src_dname, dname='') # 将 src_dname 的所有 code 注入目标 kernel 并返回内容",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#五运行与交互",
+    "href": "core.html#五运行与交互",
+    "title": "core",
+    "section": "五、运行与交互",
+    "text": "五、运行与交互\nawait run_msg(ids=None, dname='')                     # 将消息加入运行队列\nawait run_code_interactive(code)                      # 插入代码并请求用户运行（终端工具，调用后停止所有工具使用）\nawait run_and_prompt(code, prompt='Continue.') -&gt; str # 运行 code 再运行 prompt",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#六html-js-mermaid",
+    "href": "core.html#六html-js-mermaid",
+    "title": "core",
+    "section": "六、HTML / JS / Mermaid",
+    "text": "六、HTML / JS / Mermaid\nawait add_html(content, dname='')    # 发送 HTML 到浏览器 DOM\nawait add_mod(s)                      # 将 JS 代码包裹为 `&lt;script type=\"module\"&gt;`\nawait add_scr(scr, oob='innerHTML:#ephemeral')  # 交换 script 元素到 ephemeral\nawait iife(code)                      # IIFE 包裹 JS 代码并执行\nawait js_eval(expr) -&gt; Any           # 在浏览器中 eval JS 表达式，返回结果\nawait js_run(code)                    # 运行 JS 代码，代码中调用 `done()` 后返回结果\nawait enable_mermaid()\nawait mermaid(code, cls='mermaid', **kwargs)  # 渲染 Mermaid 图\n(_a 后缀版本为异步变体)",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#七事件系统",
+    "href": "core.html#七事件系统",
+    "title": "core",
+    "section": "七、事件系统",
+    "text": "七、事件系统\nawait fire_event(evt, **data)                      # 触发浏览器事件\nawait event_get(evt, timeout=15, **data)           # 触发事件 + 等待结果\nawait event_once(evt, timeout=15, ttl=5000, **data) # 同上 + 防重放\nawait trigger_now(evt, data=None, ttl=5000)         # 同步触发，防重放\nawait pop_data(idx, timeout=15)                     # 按索引取出数据\n(_a 后缀为异步变体)",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#八端点调用",
+    "href": "core.html#八端点调用",
+    "title": "core",
+    "section": "八、端点调用",
+    "text": "八、端点调用\nawait call_endp(path, dname='', json=False, raiseex=False,\n    id=None, required=True, timeout=10, audit=False, **data)\n调用 solveit HTTP 端点。_a 变体同理。",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#九http-请求",
+    "href": "core.html#九http-请求",
+    "title": "core",
+    "section": "九、HTTP 请求",
+    "text": "九、HTTP 请求\nawait xgeta(url, **kwargs)   # GET 请求\nawait xposta(url, **kwargs)  # POST 请求",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十网络搜索与-url",
+    "href": "core.html#十网络搜索与-url",
+    "title": "core",
+    "section": "十、网络搜索与 URL",
+    "text": "十、网络搜索与 URL\nawait search(q)                        # 搜索查询（通常用 web_answer 代替）\nawait searches(queries: list[str])     # 并行多查询\nawait web_answer(pr, qs: list[str], page_chars=50000)  # 搜索代理：搜多查询 + 读页面 + 回答\nawait url2note(url, extract_section=True, selector=None, ai_img=True, split_re='')  # URL → markdown → 添加为 note",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十一agent",
+    "href": "core.html#十一agent",
+    "title": "core",
+    "section": "十一、Agent",
+    "text": "十一、Agent\nawait spawn_agent(prompt)  # 派生子 agent 执行任务；上下文和工具继承自父 prompt",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十二其他",
+    "href": "core.html#十二其他",
+    "title": "core",
+    "section": "十二、其他",
+    "text": "十二、其他\nawait display_response(display, result=None)\n    # display → 渲染给用户看的 markdown/HTML\n    # result → 返回给 LLM 的文本\n\nawait allow(*c, allow_policy=None)\n    # 将 c 中的项加入 __pytools__，可选约束策略\n\nawait solveit_docs()\n    # 返回 Solveit 完整参考文档（每次重新运行，不要缓存）\n\nmsg_ref(id: str, dname='') -&gt; str\n    # 生成消息引用链接：同 dialog 用 `#id`，跨 dialog 用 `#dname/id`\n\nPlacements                         # 放置位置常量\nconnfiles                          # 连接文件配置\ndh_settings                        # dialoghelper 设置\nrealpath(subpath='/') -&gt; str       # 获取 solveit 子路径的磁盘路径",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#概述",
+    "href": "core.html#概述",
+    "title": "core",
+    "section": "概述",
+    "text": "概述\nnbdev 是一个 笔记本驱动的开发平台。在 Jupyter Notebook 中编写代码、测试和文档，自动获得：\n\nQuarto 文档：自动生成，支持 LaTeX、搜索、超链接（含跨包 doclinks，通过 nbdev-index）\nPython 打包：发布到 PyPI 和 conda，自动管理 __all__\n双向同步：notebook ↔︎ .py 模块，每个导出 cell 带有唯一 cell ID\n并行测试：nbdev-test 并行运行所有 notebook 中的测试 cell\nCI 开箱即用：GitHub Actions 自动测试和部署文档\nGit 友好：自动清理元数据、人类可读的合并冲突",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#安装",
+    "href": "core.html#安装",
+    "title": "core",
+    "section": "安装",
+    "text": "安装\npip install nbdev\n# 还需要 Quarto:\nnbdev-install-quarto\n仅支持 macOS / Linux / WSL。必须与 Jupyter 在同一 Python 环境。",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#项目结构",
+    "href": "core.html#项目结构",
+    "title": "core",
+    "section": "项目结构",
+    "text": "项目结构\nmyproject/\n├── pyproject.toml          # 项目配置（nbdev3：不再使用 settings.ini）\n├── nbs/                    # 笔记本源码\n│   ├── index.ipynb         # README + 文档首页\n│   ├── 00_core.ipynb       # 核心模块\n│   └── ...\n├── myproject/              # 导出的 Python 包（由 nbdev-export 生成）\n│   ├── __init__.py\n│   ├── core.py\n│   └── ...\n├── _docs/                  # 生成的文档（由 nbdev-docs / Quarto 生成）\n├── .github/workflows/      # CI 工作流\n└── README.md               # 由 index.ipynb 自动生成",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#快速开始",
+    "href": "core.html#快速开始",
+    "title": "core",
+    "section": "快速开始",
+    "text": "快速开始\n# 1. 创建 GitHub 空仓库，clone 到本地\ngit clone https://github.com/you/myrepo\ncd myrepo\n\n# 2. 初始化 nbdev 项目（推断 git/GitHub 信息）\nnbdev-new\n\n# 3. 安装 git hooks（每次保存自动清理 notebook 元数据）\nnbdev-install-hooks\n\n# 4. 安装开发模式包\npip install -e '.[dev]'\n\n# 5. 编辑 nbs/00_core.ipynb，然后导出 + 测试 + 清理\nnbdev-prepare\n\n# 6. 预览文档\nnbdev-preview\n\n# 7. 提交并推送\ngit add . && git commit -m 'Initial' && git push",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#pyproject.toml-配置",
+    "href": "core.html#pyproject.toml-配置",
+    "title": "core",
+    "section": "pyproject.toml 配置",
+    "text": "pyproject.toml 配置\n[project]\nname = \"myproject\"\nversion = \"0.1.0\"\ndescription = \"A short summary\"\nauthors = [{ name = \"Your Name\", email = \"you@example.com\" }]\ndependencies = [\"fastcore&gt;=1.0.5\"]\nrequires-python = \"&gt;=3.10\"\nlicense = { text = \"Apache-2.0\" }\n\n[project.optional-dependencies]\ndev = [\"nbdev\", \"jupyterlab\"]\n\n[tool.nbdev]\nlib_name = \"myproject\"          # 包名（- → _）\nlib_path = \"myproject\"          # 包路径\nnbs_path = \"nbs\"                # notebook 目录\ndoc_path = \"_docs\"              # 文档输出目录\ntst_flags = \"notest\"            # 测试时跳过的 cell 标记\nreq_flags = \"\"                  # 需要的外部依赖标记\nget_config() 返回 ConfigToml 对象（AttrDict），可通过属性访问所有键。",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#指令directives",
+    "href": "core.html#指令directives",
+    "title": "core",
+    "section": "指令（Directives）",
+    "text": "指令（Directives）\n指令是 #| 开头的特殊注释，控制 cell 的可见性、导出行为和执行。\n\n可见性\n\n\n\n\n\n\n\n指令\n效果\n\n\n\n\n#\\| hide (📓)\n隐藏整个 cell（输入+输出）。等同 Quarto 的 #\\| include: false\n\n\n#\\| echo: false (🔵)\n隐藏输入，只显示输出\n\n\n#\\| output: false (🔵)\n隐藏输出\n\n\n#\\| output: asis (🔵)\n将输出作为原始 markdown 渲染\n\n\n#\\| hide_line (📓)\n在行末使用，隐藏该行代码\n\n\n#\\| filter_stream &lt;keyword&gt; (📓)\n从输出中过滤包含指定关键词的行\n\n\n#\\| code-fold: true (🔵)\n折叠代码（true=默认折叠，show=默认展开）\n\n\n\n\n\n导出\n\n\n\n\n\n\n\n指令\n效果\n\n\n\n\n#\\| default_exp &lt;module&gt;\n设置默认导出模块名\n\n\n#\\| export\n导出到模块 + 文档。自动加入 __all__\n\n\n#\\| exporti\n内部导出：导出到模块但不加入 __all__ 和文档。等价于 _ 前缀命名\n\n\n#\\| exports\n同 export，但额外显示源码\n\n\n\n\n\n执行\n\n\n\n指令\n效果\n\n\n\n\n#\\| exec_doc (📓)\n每次生成文档时重新执行此 cell\n\n\n#\\| eval: false (🔵)\n测试时跳过此 cell",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#开发工作流",
+    "href": "core.html#开发工作流",
+    "title": "core",
+    "section": "开发工作流",
+    "text": "开发工作流\n\n1. 写 Notebook\n每个 notebook 顶部有 markdown frontmatter：\n# 页面标题\n\n&gt; 页面描述/副标题\n#| default_exp core\n\n导出函数/类用 #| export\n导出但不公开用 #| exporti 或下划线前缀\n在导出 cell 后紧跟测试/示例 cell（用 assert 或 fastcore.test）\n每个 notebook 底部建议加 #| hide; import nbdev; nbdev.nbdev_export()\n\n\n\n2. 文档化\n\ndocments：类型注解 + 行末注释即可自动生成参数表\n\ndef foo(x:int,            # X 轴坐标\n        y:int=0           # Y 轴坐标，默认 0\n        ) -&gt; str:         # 返回的字符串\n    \"简短的一句话说明\"\n\nshow_doc(sym)：在 notebook 中显示任意符号的文档（用于方法文档化）\ndoclinks：用反引号包围符号名自动生成链接，如 `myproject.core.foo`\n类方法文档化两种方式：show_doc(ClassName.method) 或 @patch 装饰器\n\n\n\n3. 导出\nnbdev-export          # 导出所有 notebook → .py 模块\nnb-export nb.ipynb    # 导出单个 notebook\n\n\n4. 测试\nnbdev-test                          # 测试所有\nnbdev-test --path nbs/00_core.ipynb # 测试单个\nnbdev-test --flags \"notest\"         # 强制运行被标记跳过的 cell\nnbdev-test --n_workers 0            # 单线程（调试用）\ntst_flags 在 pyproject.toml 中配置，测试时跳过包含这些标记的 cell。test_nb() 返回 (success:bool, duration:float)。\n\n\n5. 清理\nnbdev-clean    # 剥离多余元数据，避免 git 合并冲突\n\n\n6. 双向同步\nnbdev-update              # .py 中的小修改 → 回传到 notebook\nnbdev-update core.py      # 只更新指定模块\n限制：不能新建/重排 cell，仅限已有 cell 内的修改。需要 .py 中有 # %% path/nb.ipynb #cell_id 标记。\n\n\n7. 发布\nnbdev-pypi          # 发布到 PyPI\nnbdev-conda         # 发布到 conda\nnbdev-release-both  # 同时发布到两者\nnbdev-release-gh    # changelog + git tag + GitHub release",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#cli-命令完整列表",
+    "href": "core.html#cli-命令完整列表",
+    "title": "core",
+    "section": "CLI 命令完整列表",
+    "text": "CLI 命令完整列表\n\n\n\n命令\n功能\n\n\n\n\nnbdev-new\n创建新 nbdev 项目\n\n\nnbdev-create-config\n创建 pyproject.toml\n\n\nnbdev-migrate-config\nsettings.ini → pyproject.toml（nbdev2→3）\n\n\nnbdev-install\n安装 Quarto + 当前库\n\n\nnbdev-install-quarto\n安装 Quarto\n\n\nnbdev-install-hooks\n安装 Jupyter + git hooks\n\n\nnbdev-export\nnotebook → .py 模块\n\n\nnb-export\n导出单个 notebook\n\n\nwatch-export\n监控 nbs 目录，变化时自动导出\n\n\nnbdev-test\n并行测试\n\n\nnbdev-clean\n清理 notebook 元数据\n\n\nnbdev-trust\n信任 notebook\n\n\nnbdev-prepare\nexport + test + clean + readme（一步到位）\n\n\nnbdev-docs\n生成 Quarto 文档 + README\n\n\nnbdev-readme\n仅生成 README.md\n\n\nnbdev-contributing\n生成 CONTRIBUTING.md\n\n\nnbdev-sidebar\n生成 sidebar.yml\n\n\nnbdev-proc-nbs\n处理 notebook 用于文档渲染\n\n\nnbdev-preview\n本地预览文档\n\n\nnbdev-filter\nQuarto notebook 过滤器\n\n\nnbdev-fix\n修复合并冲突的 notebook\n\n\nnbdev-merge\nGit merge 驱动（处理 notebook 冲突）\n\n\nnbdev-update\n.py → notebook 回传\n\n\nnbdev-migrate\nv1 → v2 迁移\n\n\nnbdev-bump-version\n递增版本号\n\n\nnbdev-changelog\n从 GitHub Issues 生成 CHANGELOG\n\n\nnbdev-pypi\n发布到 PyPI\n\n\nnbdev-conda\n发布到 conda\n\n\nnbdev-release-both\n同时发布 PyPI + conda\n\n\nnbdev-release-gh\nGitHub release + changelog\n\n\nnbdev-release-git\ngit tag + release\n\n\nnbdev-requirements\n生成 requirements.txt\n\n\nnbdev-update-license\n更新许可证\n\n\nnbdev-help\n显示所有命令",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#api-参考",
+    "href": "core.html#api-参考",
+    "title": "core",
+    "section": "API 参考",
+    "text": "API 参考\n\nnbdev.config — 配置\n\nget_config(path=None) → ConfigToml：从当前目录向上查找 pyproject.toml（含 [tool.nbdev]）\nConfigToml：AttrDict 子类，. 访问键。属性：lib_name, lib_path, nbs_path, doc_path, config_path, config_file, version\nis_nbdev(path=None) → bool：是否在 nbdev 项目中\nnbdev_create_config(repo, branch, user, ...)：CLI 创建 pyproject.toml\nread_version(path) / set_version(path, version)：读写 __version__\nbump_version(v, part=2)：part=0(major)/1(minor)/2(patch)\nupdate_version(path) / update_proj(path) / add_init(path)\nimport_obj(s)：导入 \"module:obj\" 字符串\nwrite_cells(cells, hdr, file)：内部 bootstrap 导出\n\n\n\nnbdev.export — 导出\n\nnb_export(nbname, lib_path=None, procs=None, name=None, mod_maker=ModuleMaker, debug=False, solo_nb=False)：从 notebook 创建模块\nExportModuleProc：NBProcessor 的处理器，收集导出 cell 到 modules dict\n\n\n\nnbdev.maker — 模块生成\n\nModuleMaker(dest, name, nb_path, is_new, parse, solo_nb)：从 notebook cell 创建导出库\nModuleMaker.make(cells, all_cells, lib_path)：写入模块和 __all__\nModuleMaker.make_all(cells)：从导出 cell 生成 __all__\nfind_var(lines, varname) / read_var(code, varname) / update_var(varname, func, fn, code)\nrelative_import(name, fname, level)\n\n\n\nnbdev.process — 笔记本处理\n\nNBProcessor(path, procs, nb, debug=False, rm_directives=True, process=True)：核心处理器，按顺序应用 Processor 列表\n\nprocess()：遍历所有 cell，对每个 cell 依次调用每个 processor\n\nProcessor(nb)：基类。方法：cell(cell)、__call__(cell)\nextract_directives(cell, remove=True)：提取 #| 指令为 dict\n\n\n\nnbdev.processors — 内置处理器\n\nFilterDefaults：定义导出和文档所用的处理器链。可继承覆盖 procs(), base_procs(), xtra_procs()\n\nnb_proc(nb) → NBProcessor\nFilterDefaults.procs() → 完整处理器列表\n\npopulate_language：设置 cell 语言\ninsert_warning：插入「AUTOGENERATED」警告\nadd_show_docs：在导出 cell 后自动添加 show_doc\nmv_exports：移动 exports cell 到 show_doc 之后\nexec_show_docs：执行 imports + exports + show_doc 以生成文档\nadd_links：转换 markdown cell 中的 doclinks\nadd_fold：给 exports cell 添加 code-fold\nstrip_hidden_metadata / hide_ / hide_line / filter_stream_\nai_magics / clean_magics / rm_header_dash / rm_export / clean_show_doc\nfdiv(attrs) / boxify(cells)：Quarto 标记辅助\n\n\n\nnbdev.showdoc — 文档渲染\n\nshow_doc(sym, renderer=None, name=None, title_level=3)：渲染符号的签名 + docstring 为 markdown\nBasicMarkdownRenderer(sym, name=None, title_level=3, maxline=110)：默认 markdown 渲染器\ndoc(elt)：显示 show_doc 信息 + 文档链接\nshowdoc_nm(tree)：获取完全限定名\ncolab_link(path)：生成 Colab 链接\n\n\n\nnbdev.doclinks — 文档链接\n\nNbdevLookup(strip_libs, incl_libs, skip_mods, ns)：将符号名映射到 docs/source URL\n\ndoc(sym) / code(sym) → URL\nlinkify(md) → 把 markdown 中的反引号符号替换为链接\n\nnbglob(path, ...)：根据配置查找文件\nnbdev_export(path, procs, ...)：批量导出\ncreate_index(url, pre)：从 sphinx inventory 创建文档索引\n\n\n\nnbdev.sync — 双向同步\n\nnbdev_update(fname=None)：将 .py 模块修改回传到 notebook\nabsolute_import(name, fname, level)：解析相对导入\n\n\n\nnbdev.merge — 合并冲突\n\nnbdev_merge(base, ours, theirs, path)：Git merge 驱动\nnbdev_fix(nbname, outname=None, nobackup=False, theirs=False)：从冲突 notebook 创建可用版本\nunpatch(s)：提取冲突标记中的原始文件\n\n\n\nnbdev.clean — 清理\n\nnbdev_clean(fname, clear_all=False)：清理 notebook 元数据\nclean_nb(nb, ...)：底层清理函数\nnbdev_trust(fname, force_all=False)：信任 notebook\nnbdev_install_hooks()：安装 Jupyter + git hooks\n\n\n\nnbdev.test — 测试\n\nnbdev_test(path=None, flags='', n_workers=None, timing=False, do_print=False, verbose=False, save=False, ...)：并行测试\ntest_nb(fn, skip_flags=None, force_flags=None, do_print=False, showerr=True, verbose=False, save=False) → (success:bool, duration:float)\n\n\n\nnbdev.quarto — Quarto 集成\n\ninstall_quarto() / install()\nnbdev_docs(path=None, n_workers=None, ...)：生成所有文档 + README\nnbdev_readme(path=None)：从 index notebook 生成 README.md\nnbdev_sidebar(path=None, ...)：生成 sidebar.yml\nnbdev_proc_nbs(path=None, ...) / proc_nbs(path, n_workers=None, ...)\nnbdev_preview(path=None, port=3000, ...)：本地文档预览\nprepare()：export + test + clean + readme\nrefresh_quarto_yml()：从 pyproject.toml 刷新 _quarto.yml\n\n\n\nnbdev.release — 发布\n\nRelease(owner, repo, token, **groups)：从 GitHub Issues 生成 CHANGELOG\n\nchangelog(debug=False) / release() / latest_notes()\n\nrelease_git(token) / release_gh(token)\nrelease_pypi(repository=None)\nrelease_conda(path, do_build=False, ...) / write_conda_meta(path)\nrelease_both(path, ...)\nnbdev_bump_version(part=2)\nwrite_requirements(path)\nlatest_pypi(name) / pypi_details(name) / pypi_json(s)\n\n\n\nnbdev.frontmatter — Frontmatter\n\nFrontmatterProc：解析 notebook 顶部 markdown cell 的 YAML frontmatter\nnb_frontmatter(nb)：获取 frontmatter dict\n\n\n\nnbdev.qmd — Quarto Markdown 生成（实验性）\n\nmeta(md, classes, style, **kwargs)：{} 元数据段\ndiv(txt, classes, style, **kwargs)：fenced div\nimg(fname, ...) / btn(txt, link, ...)\ntbl_row(cols) / tbl_sep(sizes)\n\n\n\nnbdev.migrate — 迁移\n\nnbdev_migrate(path, no_skip=False)：v1 → v2 迁移\nnbdev_migrate_config(path)：settings.ini → pyproject.toml（v2 → v3）\nmigrate_nb(path) / migrate_md(path)\n\n\n\nnbdev.extract_attachments\n\nExtractAttachmentsPreprocessor：提取 notebook 附件到 resources dict\n\n\n\nnbdev.diff\n\nread_nb_from_git(g, path, ref)：从 git 读取 notebook\nchanged_cells(nb_path, ref_a='HEAD', ref_b=None) → set[cell_id]\ncell_diffs(nb_path, ...) → {cell_id: diff_str}\nsource_diff(old, new) → unified diff",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#测试-1",
+    "href": "core.html#测试-1",
+    "title": "core",
+    "section": "测试",
+    "text": "测试\nnbdev 将测试视为一等公民。每个 notebook 代码 cell 都会被 nbdev-test 执行。\n\n使用 assert 或 fastcore.test（test_eq, test_is, test_fail 等）\n跳过测试：#| eval: false 或 tst_flags 中配置的标记（如 notest）\ntest_fail(lambda: fn(), contains=\"error msg\") 用于文档化错误场景\nnbdev-test --flags \"notest\" 强制运行标记的 cell",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#最佳实践摘要",
+    "href": "core.html#最佳实践摘要",
+    "title": "core",
+    "section": "最佳实践摘要",
+    "text": "最佳实践摘要\n\n短 docstring：一行总结即可，细节放在 prose cell + 代码示例中\ndocments：类型注解 + 行末注释 → 自动参数表\ncell 短小：拆分长函数，用 @patch 分散方法定义\n立即演示：代码 cell 后紧跟示例/测试 cell\n测试即文档：示例 cell 加 assert，既是文档也是测试\ndoclinks：反引号符号名自动超链接\n_repr_markdown_：给类添加富文本表示\nH2 分组：markdown ## 分组相关符号；#### 子分组详细说明\nshow_doc 文档化方法：类定义在同一 cell 时用 show_doc(Method)；拆分 cell 时用 @patch\n错误文档化：test_fail 优于 docstring 中的 “raises” 段落\nautoreload：notebook 顶部 %load_ext autoreload; %autoreload 2",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#注意事项",
+    "href": "core.html#注意事项",
+    "title": "core",
+    "section": "注意事项",
+    "text": "注意事项\n\n不要在同一个 cell 中混合 import 和其他代码（会导致文档生成时的副作用）\n修改 default_exp 后记得删除旧的 .py 模块（nbdev 不会自动清理）\nWindows 仅支持 WSL\n导出的 .py 包含 cell ID 标记：# %% path/nb.ipynb #cell_id",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#core-types-fastllm.types",
+    "href": "core.html#core-types-fastllm.types",
+    "title": "core",
+    "section": "Core Types (fastllm.types)",
+    "text": "Core Types (fastllm.types)\nAll types are dataclasses.\n\nPart — Canonical Atomic Content Unit\n@dataclass\nclass Part:\n    type: str       # semantic modality\n    text: str = None\n    data: dict = None\n\n\n\n\n\n\n\n\n\nCanonical type\nDescription\n.text\n.data\n\n\n\n\ntext\nPlain text\nthe text\n{\"citations\": [...]}\n\n\ninput_image\nImage (URL/b64)\nURL or data URL\nprovider-specific\n\n\ninput_audio\nAudio (b64)\ndata URL\nprovider-specific\n\n\ninput_video\nVideo (URL)\nURL\nprovider-specific\n\n\ninput_file\nDocument\nURL or b64\n{\"file_data\":..., \"filename\":...}\n\n\ntool_use\nTool invocation\n—\n{id, name, arguments, server}\n\n\ntool_result\nTool result\nresult str or [Part]\n{id, name, ...}\n\n\nthinking\nReasoning\nthinking text\nsignature metadata\n\n\nrefusal\nRefusal\nrefusal text\n—\n\n\n\n\n\nMsg\n@dataclass\nclass Msg:\n    role: str              # user | assistant | tool\n    content: List[Part]\nQuick helper: user(text) → Msg(role='user', content=[Part(type='text', text=text)])\n\n\nToolCall\n@dataclass\nclass ToolCall:\n    id: str\n    name: str\n    arguments: dict = {}\n    server: bool = False       # True for web_search, code_exec, etc.\n    extra: dict = {}\n\n\nUsage\n@dataclass(frozen=True)\nclass Usage:\n    prompt_tokens: int = 0\n    completion_tokens: int = 0\n    total_tokens: int = 0\n    cached_tokens: int = 0\n    cache_creation_tokens: int = 0\n    reasoning_tokens: int = 0\n    raw: dict = {}\n\n\nCompletion\n@dataclass(frozen=True)\nclass Completion:\n    model: str\n    message: Msg\n    finish_reason: str = None     # stop | tool_calls | length | content_filter\n    usage: Usage = None\n    tool_calls: List[ToolCall] = []\n    api_name: str = None\n    vendor_name: str = None\n    raw: dict = {}\nHas .cost property computed from raw usage + registered cost function.\n\n\nKey Helpers\nmk_completion(resp, model, api_name, vendor_name) → Completion\nmk_tool_res_msg(tool_calls, results) → Msg\nfn_schema(t) → (name, description, parameters)\nsys_text(system) → str\nget_model_pricing(model, vendor_name) → dict (per-million costs)\napprox_pricing(model, vendor_name, out=10, cache=80, inp=10) → float\ninfer_api_name(model) → 'anthropic'|'gemini'|'openai'",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#streaming-fastllm.streaming",
+    "href": "core.html#streaming-fastllm.streaming",
+    "title": "core",
+    "section": "Streaming (fastllm.streaming)",
+    "text": "Streaming (fastllm.streaming)\n\nDelta — Streaming Event\n@dataclass\nclass Delta:\n    text: str = \"\"\n    thinking: str = \"\"\n    refusal: str = \"\"\n    tool_calls: list[ToolCall] = []\n    citations: list = []\n    server_tool_result: dict = None\n    finish_reason: str = None\n    usage: Usage = None\n    raw: dict = {}\n\n\nPartAccum — Stream Collator\npart_accum = PartAccum()\npart_accum.append('text', idx, txt)\npart_accum.append('tool_use', idx, id=..., name=..., arguments=...)\nparts, tool_calls = part_accum.get_merged()\n\n\nmk_acollect_stream(it, index_fn, ...)\nCore streaming pipeline. Takes async iterable of Delta, yields: - {\"text\": \"...\"} — text chunks - {\"thinking\": \"...\"} — reasoning chunks - {\"citations\": [...]} — citation events - Part(type=\"tool_use\", data={...}) — ready tool calls - {\"thinking\": \"processing\"} — fence-stop processing - Final Completion\n\n\nStop Callables\nstop_sequences(seqs) → callable   # stop on any sequence match\nFenceToolStop({'py', 'bash'})     # stop on `````py/`````bash fence blocks",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#provider-integrations",
+    "href": "core.html#provider-integrations",
+    "title": "core",
+    "section": "Provider Integrations",
+    "text": "Provider Integrations\nEach provider registers in api_registry.apis[name]:\nnorm_tool_calls, norm_parts, norm_finish, norm_usage  → Completion construction\nacollect_stream                                        → streaming\nmk_payload                                             → API request payload\ncost, get_hdrs                                         → cost calc + auth\nop_path                                                → (non-stream, stream) op names\n\nProvider Support\n\n\n\n\n\n\n\n\n\n\nFeature\nOpenAI Responses\nOpenAI Chat\nAnthropic\nGemini\n\n\n\n\nText\n✅ input_text\n✅ text\n✅ text\n✅ text\n\n\nThinking\n✅ reasoning\n✅ (some)\n✅ thinking\n✅ thoughts\n\n\nUser tools\n✅ function_call\n✅ tool_calls\n✅ tool_use\n✅ functionCall\n\n\nServer tools\n✅ web/fil-search\n—\n✅ web/mcp\n✅ google/code/url\n\n\nImage\n✅ input_image\n✅ image_url\n✅ image\n✅ inlineData\n\n\nAudio\n❌\n✅ input_audio\n❌\n✅ inlineData\n\n\nVideo\n✅ (→file)\n✅ (→file)\n❌\n✅ fileData\n\n\nFile\n✅ input_file\n✅ file (b64)\n✅ document\n✅ inlineData\n\n\nSystem prompt\ninstructions\nmessages[0]\nsystem param\nsystem_instruction\n\n\nStreaming\nSSE\nSSE+include_usage\nSSE\nSSE (alt=sse)\n\n\nCaching\nauto\nauto\ncache_control\ncachedContent\n\n\n\n\n\nReasoning Effort Mapping\n\n\n\n\n\n\n\n\n\nCanonical\nOpenAI\nAnthropic\nGemini\n\n\n\n\nNone\nno reasoning\nno thinking\ndefault\n\n\n\"minimal\"\n—\n—\nthinkingLevel=low\n\n\n\"low\"\neffort=low\nadaptive+effort=low\nthinkingLevel=low\n\n\n\"medium\"\neffort=medium\nadaptive+effort=medium\nthinkingLevel=medium\n\n\n\"high\"\neffort=high\nadaptive+effort=high\nthinkingLevel=high\n\n\n\n\n\nWeb Search\nweb_search_options={\"search_context_size\": \"low\"|\"medium\"|\"high\"}\nweb_search_options={\"user_location\": {\"approximate\": {\"city\": \"...\"}}}",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#acomplete-main-entry-fastllm.acomplete",
+    "href": "core.html#acomplete-main-entry-fastllm.acomplete",
+    "title": "core",
+    "section": "acomplete (main entry, fastllm.acomplete)",
+    "text": "acomplete (main entry, fastllm.acomplete)\nasync acomplete(\n    msgs: list[Msg],\n    model: str = None,\n    stream: bool = False,\n    system = None,              # str or Part\n    max_tokens: int = None,\n    temperature: float = None,\n    tools: list = None,\n    tool_choice = None,         # 'auto'|'required'|'none'|'tool_name'\n    reasoning_effort = None,    # 'low'|'medium'|'high'|dict\n    web_search_options: dict = None,\n    stop_callables: list = None,\n    api_key: str = None,\n    api_name: str = None,\n    vendor_name: str = None,\n    client: OpenAPIClient = None\n)\nNon-stream: returns Completion. Stream: returns async iterable.\nVendor name: infer_api_name(model) → anthropic/gemini/openai. API key: parameter → env var (OPENAI_API_KEY/ANTHROPIC_API_KEY/GEMINI_API_KEY) → model metadata.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#usage-examples",
+    "href": "core.html#usage-examples",
+    "title": "core",
+    "section": "Usage Examples",
+    "text": "Usage Examples\n\nBasic\nmsgs = [Msg('user', [Part('text', 'Capital of France?')])]\nr = await acomplete(msgs, model='gpt-4o-mini')\n\n\nStreaming\nasync for o in await acomplete(msgs, model='claude-sonnet-4-6', stream=True):\n    if isinstance(o, Completion): final = o\n    elif t:=o.get('text'): print(t, end='')\n\n\nTools\nr1 = await acomplete(msgs, tools=tools, model='gpt-4o-mini')\nmsgs += [r1.message, mk_tool_res_msg(r1.tool_calls, ['22°C'])]\nr2 = await acomplete(msgs, tools=tools, model='gpt-4o-mini')\n\n\nCross-provider\nr1 = await acomplete(msgs, model='claude-sonnet-4-6')\nmsgs += [r1.message, user('more info?')]\nr2 = await acomplete(msgs, model='models/gemini-3-flash-preview')\n\n\nSystem prompt\nr = await acomplete(msgs, system=\"You are a pirate.\", model='gpt-4o-mini')\n\n\nImages\nimg_msg = Msg('user', [\n    Part('input_image', 'https://example.com/photo.jpg'),\n    Part('text', \"What's in this image?\")\n])\n\n\nWeb Search\n# OpenAI\nr = await acomplete(msgs, model='gpt-4o-mini',\n                    tools=[{\"type\": \"web_search_preview\"}])\n# Anthropic\nr = await acomplete(msgs, model='claude-sonnet-4-6',\n                    web_search_options={})\n# Gemini\nr = await acomplete(msgs, model='models/gemini-3-flash-preview',\n                    web_search_options={})\n\n\nCaching (Anthropic)\nsystem = Part('text', long_text, data={'cache_control': {'type': 'ephemeral'}})",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#model-aliases-in-fastllm.types",
+    "href": "core.html#model-aliases-in-fastllm.types",
+    "title": "core",
+    "section": "Model Aliases (in fastllm.types)",
+    "text": "Model Aliases (in fastllm.types)\nsonn46 = \"claude-sonnet-4-6\"\nsonn5  = \"claude-sonnet-5\"\nopus   = \"claude-opus-4-8\"\ngpt54  = \"gpt-5.4\"\ngpt54m = \"gpt-5.4-mini\"\ngpt55  = \"gpt-5.5\"",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#cost-per-million-tokens",
+    "href": "core.html#cost-per-million-tokens",
+    "title": "core",
+    "section": "Cost (per million tokens)",
+    "text": "Cost (per million tokens)\n\n\n\nModel\nVendor\nInput\nOutput\n\n\n\n\nClaude Sonnet 4-6\nanthropic\n$3.00\n$15.00\n\n\nClaude Opus 4-8\nanthropic\n$15.00\n$75.00\n\n\nGPT-5.4\nopenai\n$1.25\n$10.00\n\n\nGPT-5.4-mini\nopenai\n$0.15\n$0.60\n\n\nGPT-5.5\nopenai\n$2.50\n$20.00\n\n\nGemini 3.5 Flash\ngemini\n$1.50\n$9.00\n\n\nDeepSeek V4 Flash\ndeepseek\n$0.14\n$0.28\n\n\nDeepSeek V4 Pro\ndeepseek\n$0.44\n$0.87\n\n\nKimi K2.6\nfireworks\n$0.95\n$4.00\n\n\nMimo V2.5\nmimo\n$0.14\n$0.28\n\n\nMiniMax M3\nminimax\n$0.30\n$1.20\n\n\n\nCompletion.cost computes from raw usage. DeepSeek V4 doubles during peak UTC hours (1-4, 6-10).",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#architecture",
+    "href": "core.html#architecture",
+    "title": "core",
+    "section": "Architecture",
+    "text": "Architecture\nMsg[] + model + kwargs\n        │\n   acomplete()\n        │\n        ├─ infer api_name/vendor_name\n        ├─ mk_payload(msgs, model, ...) → provider dict\n        ├─ call op (stream or non-stream)\n        │\n   ┌─ non-stream: resp → mk_completion(norm_*) → Completion\n   └─ stream: resp → norm_sse_event → mk_acollect_stream → Completion\nEscape hatch: Part.data[\"&lt;provider&gt;\"] / Msg.data[\"&lt;provider&gt;\"] bypasses canonicalization.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#一安装",
+    "href": "core.html#一安装",
+    "title": "core",
+    "section": "一、安装",
+    "text": "一、安装\npip install fastlite",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#二连接数据库",
+    "href": "core.html#二连接数据库",
+    "title": "core",
+    "section": "二、连接数据库",
+    "text": "二、连接数据库\nfrom fastlite import *\n\ndb = database(\"chinook.sqlite\")  # 持久化文件\n# 或\ndb = database(\":memory:\")         # 内存数据库\ndatabase() 是 fastlite 封装的工厂函数，不是 sqlite-utils 的 Database（apswutils 已改为 APSW 后端、WAL 默认）。\nDatabase 对象也有以下构造方式：\ndb = Database(\"data.db\")                              # 文件路径\ndb = Database(\"data.db\", recreate=True)               # 重建\ndb = Database(memory=True)                            # 内存",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#三核心属性",
+    "href": "core.html#三核心属性",
+    "title": "core",
+    "section": "三、核心属性",
+    "text": "三、核心属性\n\ndb.t — 表访问（自动补全）\ndt = db.t\ndt              # 列出所有表名\ndt.Artist        # 单表 -&gt; &lt;Table Artist (ArtistId, Name)&gt;\ndt['Artist','Album']  # 多表 -&gt; list[Table]\n'Artist' in dt  # True\n\n\ntable.c — 列访问（自动补全）\nartist = dt.Artist\nac = artist.c\nac              # ArtistId, Name\nac.Name         # -&gt; \"Artist\".\"Name\" (可直接用于 SQL f-string)\n\nf\"select * from {artist} where {ac.Name} like 'AC/%'\"\n# =&gt; select * from \"Artist\" where \"Artist\".\"Name\" like 'AC/%'\n\n\ndb.v — 视图访问\ndb.create_view(\"AccaDaccaAlbums\", acca_sql, replace=True)\ndb.v.AccaDaccaAlbums()  # 查询视图",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#四查询",
+    "href": "core.html#四查询",
+    "title": "core",
+    "section": "四、查询",
+    "text": "四、查询\n\ndb.q(sql) — 快速查询\ndb.q(f\"select * from {artist} where {ac.Name} like 'AC/%'\")\n# =&gt; [{'ArtistId': 1, 'Name': 'AC/DC'}]\n\n\ntable(…) — 调用表查询\n调用 dataclass() 之后自动返回 dataclass 对象：\nalbum.dataclass()\nalbum(limit=2)       # 返回 list[Album]\nalbum(with_pk=1, limit=2)  # [(pk, Album), ...]\nalbum[1]              # 按主键索引 -&gt; Album(...)\n参数：where / where_args / order_by / limit / offset / select / with_pk / as_cls / xtra\n\n\ntable.selectone(…)\nartist.selectone('Name=?', ('AC/DC',))\n# =&gt; Artist(...)  返回唯一一条，否则 NotFoundError 或 ValueError",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#五数据类dataclass",
+    "href": "core.html#五数据类dataclass",
+    "title": "core",
+    "section": "五、数据类（Dataclass）",
+    "text": "五、数据类（Dataclass）\n\ntable.dataclass()\nAlbum = album.dataclass()\nAlbum(AlbumId=1, Title='For Those...', ArtistId=1)\n\n\ncreate_mod — 导出到模块\ncreate_mod(db, 'db_dc')\n# 写入 db_dc.py 文件\nfrom db_dc import Track\nTrack()  # 全默认值\n\n\nall_dcs / link_dcs\nall_dcs(db)    # 所有表的 dataclass 列表\ndb.set_classes(globals())\ndb.get_tables(globals())  # 将表对象注入全局命名空间",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#六创建表",
+    "href": "core.html#六创建表",
+    "title": "core",
+    "section": "六、创建表",
+    "text": "六、创建表\n\ndb.create(cls, …) — 从类创建\nclass Cat: id: int; name: str; weight: float\ncats = db.create(Cat)\n可选参数：pk='id'（主键，单列 str 或复合 tuple）、transform=True、foreign_keys=[...]、defaults={'col': val}、not_null={'col1','col2'}、strict=True\n\n\ntable.create(columns, …) — 显式列定义\ncats.create(id=int, name=str, weight=float, pk='id')\n# =&gt; CREATE TABLE [cats] (\n#      [id] INTEGER PRIMARY KEY,\n#      [name] TEXT,\n#      [weight] FLOAT\n#    )\n\n\ndb.import_file — 从 CSV/TSV 等导入\ntable = db.import_file(\"people\", csv_data)   # 也接受文件路径、bytes、file handle\ntable = db.import_file(\"people\", csv3, alter=True)  # 自动加新列",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#七数据操作",
+    "href": "core.html#七数据操作",
+    "title": "core",
+    "section": "七、数据操作",
+    "text": "七、数据操作\n所有方法接受 dict / dataclass / 普通 class / kwargs，返回更新后的记录。\n\ninsert / insert_all\ncats.insert({'name': 'Rex', 'weight': 12.2})  # dict\ncats.insert(CatDC(name='Tom', weight=10.2))   # dataclass\ncats.insert(Cat(name='Jerry', weight=5.2))    # class\ncats.insert(name='Kitty', weight=3)           # kwargs\n\ncats.insert_all([{'name': 'A'}, {'name': 'B'}], batch_size=100)\n# 参数: alter=True, ignore=True, replace=True, pk=...\n\n\nupdate\ncats.update(dict(id=1, name='Jerry', weight=6.2))  # dict\ncats.update(CatDC(id=1, name='Jerry', weight=6.3)) # dataclass\ncats.update(Cat(id=1, name='Jerry', weight=5.7))   # class\ncats.update(id=1, name='Jerry', weight=5.7)        # kwargs\n\n\nupsert / upsert_all\n存在则更新，不存在则插入。必须包含主键值。\n\n\ndelete\ncats.delete(1)                   # 单主键\npetfoods.delete((1, 'tuna'))     # 复合主键",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#八xtra-行级过滤",
+    "href": "core.html#八xtra-行级过滤",
+    "title": "core",
+    "section": "八、xtra — 行级过滤",
+    "text": "八、xtra — 行级过滤\nalbum.xtra(ArtistId=1)\nalbum()        # 只返回 ArtistId=1 的行\n\ncats.xtra(uid=2)\ncats.insert(name='meow', weight=6)  # 自动带上 uid=2\n# 返回 {'id': 1, 'name': 'meow', 'weight': 6.0, 'uid': 2}\n\ncats.xtra(uid=1)\ncats.update(**cat)   # NotFoundError（uid 不匹配）",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#九多字段主键",
+    "href": "core.html#九多字段主键",
+    "title": "core",
+    "section": "九、多字段主键",
+    "text": "九、多字段主键\nclass PetFood: catid: int; food: str; qty: int\npetfoods = db.create(PetFood, pk=['catid', 'food'])\n\npetfoods[1, 'tuna']     # 索引\npetfoods.delete((1, 'tuna'))  # 删除\npf.qty=3; petfoods.update(pf)\npf.qty=1; petfoods.upsert(pf)",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十表结构修改",
+    "href": "core.html#十表结构修改",
+    "title": "core",
+    "section": "十、表结构修改",
+    "text": "十、表结构修改\n\nadd_column\ntable.add_column(\"instagram\", str)\ntable.add_column(\"weight\", float)\ntable.add_column(\"species_id\", fk=\"species\")  # 外键\n\n\ntransform — 完整变换\ntable.transform(\n    types={'age': int},              # 改类型\n    rename={'age': 'initial_age'},   # 重命名\n    drop={'old_col'},                # 删列\n    pk='new_id',                     # 换主键\n    not_null={'age', 'weight'},      # 改 NOT NULL\n    defaults={'age': 1},             # 改默认值\n    column_order=('name', 'age', 'id'),\n    add_foreign_keys=(('country', 'country', 'id'),),\n    drop_foreign_keys=('country',),\n    strict=True,\n)\n\n\ndrop / rename\ntable.drop(ignore=True)\ndb.rename_table(\"old\", \"new\")",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十一数据库图",
+    "href": "core.html#十一数据库图",
+    "title": "core",
+    "section": "十一、数据库图",
+    "text": "十一、数据库图\ndiagram(db.t['Artist','Album','Track','Genre','MediaType'], size=8, ratio=0.4)\n需要 graphviz。",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十二事务",
+    "href": "core.html#十二事务",
+    "title": "core",
+    "section": "十二、事务",
+    "text": "十二、事务\nwith db.atomic():  # 推荐\n    db.table(\"accounts\").update(1, {\"balance\": 90})\n    db.table(\"accounts\").update(2, {\"balance\": 110})\n\n# 手动:\ndb.begin()\ndb.commit() / db.rollback()",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十三全文本搜索fts",
+    "href": "core.html#十三全文本搜索fts",
+    "title": "core",
+    "section": "十三、全文本搜索（FTS）",
+    "text": "十三、全文本搜索（FTS）\ntable.enable_fts([\"name\", \"twitter\"], create_triggers=True)\ntable.search(\"cleo\")          # order_by, limit, where, columns, include_rank\ntable.populate_fts([\"name\"])\ntable.optimize()\ntable.disable_fts()",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十四查找表与多对多",
+    "href": "core.html#十四查找表与多对多",
+    "title": "core",
+    "section": "十四、查找表与多对多",
+    "text": "十四、查找表与多对多\n\nlookup\nspecies_id = db.table(\"Species\").lookup({\"name\": \"Palm\"})\n\n\nextracts — 插入时自动提取\ndb.table(\"Trees\").insert(\n    {\"latitude\": 49.12, \"species\": \"Common Juniper\"},\n    extracts={\"species\": \"Species\"}\n)\n\n\nm2m — 多对多\ndogs.insert({\"id\": 1, \"name\": \"Cleo\"}, pk=\"id\").m2m(\n    \"humans\", {\"id\": 1, \"name\": \"Natalie\"}, pk=\"id\"\n)\n# 自动创建 dogs_humans 表\n\n# 配合 lookup\ndogs.insert({\"id\": 1, \"name\": \"Cleo\"}).m2m(\n    \"characteristics\", lookup={\"name\": \"Playful\"}\n)",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十五其他常用方法速查",
+    "href": "core.html#十五其他常用方法速查",
+    "title": "core",
+    "section": "十五、其他常用方法速查",
+    "text": "十五、其他常用方法速查\n\n\n\n方法\n用途\n\n\n\n\ntable.count\n行数\n\n\ntable.rows\n所有行（生成器）\n\n\ntable.rows_where(where, where_args)\n条件查询\n\n\ntable.pks_and_rows_where(...)\n返回 (pk, row) 元组\n\n\ntable.get(pk)\n按主键获取\n\n\ntable.exists()\n表是否存在\n\n\ntable.schema\nDDL\n\n\ntable.columns_dict\n{'col': type}\n\n\ntable.pks\n主键列表\n\n\ntable.foreign_keys\n外键列表\n\n\ntable.indexes\n索引列表\n\n\ntable.create_index(cols, unique=...)\n创建索引\n\n\ntable.extract(columns)\n提取列到独立表\n\n\ntable.convert(col, fn)\n转换列值\n\n\ntable.add_foreign_key(col, other, other_col)\n添加外键\n\n\ndb.table_names() / db.view_names()\n表/视图名列表\n\n\ndb.schema\n全库 DDL\n\n\ndb.analyze() / db.vacuum()\n分析/压缩\n\n\ndb.enable_wal() / db.disable_wal()\nWAL 模式\n\n\ndb.close()\n关闭连接\n\n\ndb.register_function(fn)\n注册 SQL 函数\n\n\ndb.execute(sql, params)\n执行 SQL（返回 Cursor）\n\n\ndb.item(sql, params)\n返回单值",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十六hash_id-与-conversions",
+    "href": "core.html#十六hash_id-与-conversions",
+    "title": "core",
+    "section": "十六、hash_id 与 conversions",
+    "text": "十六、hash_id 与 conversions\ndogs.upsert({\"name\": \"Cleo\"}, hash_id=\"id\")      # SHA1 hash 作为 ID\ndogs.upsert({\"name\": \"Cleo\", \"age\": 7}, hash_id_columns=(\"name\",))\n\ndb.table(\"example\").insert(\n    {\"name\": \"foo\"},\n    conversions={\"name\": \"upper(?)\"}             # 插入时 SQL 转换\n)",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#十七fastlite-vs-sqlite-utils-关键差异",
+    "href": "core.html#十七fastlite-vs-sqlite-utils-关键差异",
+    "title": "core",
+    "section": "十七、fastlite vs sqlite-utils 关键差异",
+    "text": "十七、fastlite vs sqlite-utils 关键差异\n\ndatabase() 返回增强 Database，非标准 Database()\ndb.t / table.c / db.v — 自动补全 + f-string SQL\ntable(...) — 快捷 rows_where\ntable.dataclass() / create_mod() / all_dcs()\ntable.xtra() / table.selectone()\n底层 APSW 而非标准 sqlite3\nWAL 默认开启\n全部表创建方法接受 **kwargs",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#列类型映射",
+    "href": "core.html#列类型映射",
+    "title": "core",
+    "section": "列类型映射",
+    "text": "列类型映射\n\n\n\nPython\nSQLite\n\n\n\n\nint\nINTEGER\n\n\nfloat\nREAL\n\n\nstr\nTEXT\n\n\nbytes\nBLOB\n\n\nbool\nINTEGER\n\n\ndatetime.*\nTEXT\n\n\n未指定\nTEXT（默认）",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#错误类型",
+    "href": "core.html#错误类型",
+    "title": "core",
+    "section": "错误类型",
+    "text": "错误类型\n\nNotFoundError — 记录不存在 / get 无结果\nSQLError — SQL 执行错误\nValueError — selectone 无唯一结果\nTransactionError — 事务冲突\nTransformError — transform 失败\n\n\nstyling\nWhen writing code, follow the fastai style guide.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#symbol-naming",
+    "href": "core.html#symbol-naming",
+    "title": "core",
+    "section": "Symbol Naming",
+    "text": "Symbol Naming\nFollow Huffman Coding principle: commonly used things get shorter names.\nLife-cycle naming: shorter-lived symbols get shorter names. - Aggressive abbrevs → comprehensions, lambdas, local helpers, temp vars - Common abbrevs → function args, function names, variables - Light/no abbrevs → module names, class names, constructors (they live forever)\nStandard Python casing: CamelCase classes, under_score everything else.\nConventions: - o for object in comprehensions, i for index, k/v for dict key/value - x for tensor input (unless library convention differs, e.g. input/target for loss fns) - Use domain abbreviations: sz (size), img (image), lm (language model), nll, kl_divergence - When implementing a paper, follow the paper’s nomenclature: conv1 not first_convolutional_layer",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#abbreviation-table",
+    "href": "core.html#abbreviation-table",
+    "title": "core",
+    "section": "Abbreviation Table",
+    "text": "Abbreviation Table\n\nSuffixes / Prefixes / Infixes\n\n\n\nPattern\nAbbr\nExamples\n\n\n\n\nplural\ns\nxs, ys, tfms, args\n\n\ninternal/private\n_\ndata_, V_()\n\n\nboolean check\nis_\nis_reg, is_multi, is_test\n\n\nfeature toggle\nuse_\nuse_bn\n\n\ncount of (plural noun)\nn_\nn_embs, n_factors\n\n\ncount something (verb)\nnum_\nnum_features(), num_gpus()\n\n\nconvert to\nto_\nto_gpu(), to_cpu(), to_np()\n\n\nconvert between\n2\nname2idx(), seq2seq\n\n\n\n\n\nAggressive (short-scope only)\n\n\n\nConcept\nAbbr\n\n\n\n\nfunction\nf\n\n\ntorch input\nx\n\n\nkey, value\nk, v\n\n\nshort-scope pairs\np, q\n\n\nindex\ni\n\n\ngeneric object\no\n\n\nvariable\nv\n\n\ntensor\nt\n\n\narray\na\n\n\nfirst letter convention\nw (weight), m (model)\n\n\n\n\n\nGeneric\n\n\n\nConcept\nAbbr\nConcept\nAbbr\n\n\n\n\nfunction\nfn\nargument\narg\n\n\nprocess\nproc\nstring\ns\n\n\ntransform\ntfm\nclass\ncl\n\n\nevaluate\neval\nsource\nsrc\n\n\nobject\nobj\ndestination\ndst\n\n\ndirectory\ndir\npercentage\np\n\n\nratio/proportion\nr\ncount\ncnt\n\n\nconfiguration\ncfg\nrandom\nrand\n\n\nutility\nutil\nfilename\nfname\n\n\nthreshold\nthresh\n\n\n\n\n\n\n\nData\n\n\n\nConcept\nAbbr\nConcept\nAbbr\n\n\n\n\nnum elements\nn\nlength\nlen\n\n\nsize\nsz\narray\narr\n\n\ndataset\nds\ndataloader\ndl\n\n\ndataframe\ndf\nbatch\nb\n\n\nbatch x\nxb\nbatch y\nyb\n\n\nbatch size\nbs\nnum classes\nc\n\n\ntarget\ny\ninput\nx\n\n\nprediction\npred\noutput\nout\n\n\ncolumn\ncol\ncontinuous\ncont\n\n\ncategory\ncat\nindex\nidx\n\n\nidentity\nid\nunique\nuniq\n\n\nresidual\nres\nlabel\nlbl\n\n\naugment\naug\npadding\npad\n\n\nprobability\npr\nimage\nimg\n\n\nrectangle\nrect\ncolor\ncolr\n\n\nanchor box\nanc\nbounding box\nbb\n\n\ntrain\ntrain\nvalidation\nvalid\n\n\niterator\niter\ndependent var\ndep\n\n\nindependent var\nindep\nmultiple targets\nmulti\n\n\nregression\nreg\n\n\n\n\n\n\n\nModeling\n\n\n\nConcept\nAbbr\nConcept\nAbbr\n\n\n\n\ninitialize\ninit\nlanguage model\nlm\n\n\nRNN\nrnn\nconv net\nconvnet\n\n\nmodel data\nmd\nlinear\nlin\n\n\nembedding\nemb\nbatch norm\nbn\n\n\ndropout\ndrop\nfully connected\nfc\n\n\nconvolution\nconv\nhidden\nhid\n\n\noptimizer\nopt\ncriteria\ncrit\n\n\nweight decay\nwd\nmomentum\nmom\n\n\ncross validation\ncv\nlearning rate\nlr\n\n\nschedule\nsched\ncycle length\ncl\n\n\nmultiplier\nmult\nactivation\nactn\n\n\n\n\n\nDomain: CV\n\n\n\nConcept\nAbbr\nExample\n\n\n\n\nfigure\nfig\n\n\n\nimage\nim\n\n\n\nopencv transform\n_cv suffix\nzoom_cv(), rotate_cv()\n\n\n\n\n\nDomain: NLP\n\n\n\nConcept\nAbbr\n\n\n\n\ntoken\ntok\n\n\nsequence length\nsl\n\n\nbackprop through time\nbptt",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#layout-rules",
+    "href": "core.html#layout-rules",
+    "title": "core",
+    "section": "Layout Rules",
+    "text": "Layout Rules\n\nLine width: ≤~140 chars.\nOne line = one idea: put if + its 1-line body on one line using :; never use ; to combine multiple statements.\nTernary operator: x = y if a else b.\nSingle-line bodies preferred for short with, open, try, except, for, and if statements, plus small one-line functions that don’t need a docstring:\n\nGood: if not data: return None, def _is_ready(self): return self._ready.is_set()\nBad: spreading short bodies across multiple lines\n\nGroup similar 1-liners without blank lines between:\ndef det_lighting(b, c): return lambda x: lighting(x, b, c)\ndef det_rotate(deg): return lambda x: rotate_cv(x, deg)\ndef det_zoom(zoom): return lambda x: zoom_cv(x, zoom)\nAlign conceptually similar parts for visual diffing:\nif self.store.stretch_dir==0: x = stretch_cv(x, self.store.stretch, 0)\nelse:                         x = stretch_cv(x, 0, self.store.stretch)\nDestructuring assignment for class members (no spaces after commas, spaces around =):\nself.sz,self.denorm,self.norm,self.sz_y = sz,denorm,normalizer,sz_y\nBe frugal with vertical whitespace; group imports on one line:\nimport PIL, os, numpy as np, math, collections, threading\n\nGood: from mymod import (a, b)\nBad: from mymod import a,b\n\nContinuation lines indent 4 spaces beyond the opening block; don’t add extra hanging indent.\nStandalone ), ], } attach to the end of the previous content line — not on their own line.\nIndent: 4 spaces; no trailing whitespace.\nOperator spacing: follow domain notation — no spaces around / in pathlib, math-like spacing in equations.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#structure",
+    "href": "core.html#structure",
+    "title": "core",
+    "section": "Structure",
+    "text": "Structure\n\nFavor small helpers over repetitive blocks:\n\nGood: def _send_stream(self, name, text): ...; self._send_stream(\"stdout\", out)\nBad: self._send(sock, \"stream\", {\"name\": \"stdout\", \"text\": out}, parent)\n\nUse comprehensions or inline expressions when they improve clarity:\n\nGood: ids = [m[\"header\"][\"msg_id\"] for m in msgs]\nBad: ids = []; for m in msgs: ids.append(m[\"header\"][\"msg_id\"])",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#typing",
+    "href": "core.html#typing",
+    "title": "core",
+    "section": "Typing",
+    "text": "Typing\n\nNever add type annotations to LHS assignments (e.g. x: int = 1), except dataclass fields.\nKeep annotations simple; avoid nested generics beyond one level unless you have a strong reason.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#algorithm-guidelines",
+    "href": "core.html#algorithm-guidelines",
+    "title": "core",
+    "section": "Algorithm Guidelines",
+    "text": "Algorithm Guidelines\n\nImplementation should be at least as fast, accurate, and concise as alternatives. Profile hotspots.\nMust scale: work in 16GB RAM on arbitrary datasets → use generators, not lists.\nAdd equation number comments from paper being implemented.\nUse numpy/pytorch broadcasting over loops.\nUse advanced indexing over specialized indexing methods.\nTest on multiple datasets and compare to existing approaches before PR.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#documentation",
+    "href": "core.html#documentation",
+    "title": "core",
+    "section": "Documentation",
+    "text": "Documentation\n\nDocs go in docs_src notebooks → generate HTML.\nUse brief single-line docstrings for multi-line functions:\n\nGood: def run(self): \"Run the thread.\" ...\nBad: def run(self):\\n    \"\"\"\\n    Run the thread.\\n    \"\"\"\\n    ...\n\nIn code: one-line docstring with back-quoted references to main params.\nStyle model: Python re module docs.\nUse docments (inline # comments in signatures) for parameter docs.\nComments: only explain why, not how. Code should be self-explanatory. Add very few comments.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#testing",
+    "href": "core.html#testing",
+    "title": "core",
+    "section": "Testing",
+    "text": "Testing\n\nAll tests must pass before changes are considered complete.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#other-rules",
+    "href": "core.html#other-rules",
+    "title": "core",
+    "section": "Other Rules",
+    "text": "Other Rules\n\nAssume latest Python + libs. Note if relying on something &lt; 2 months old.\nLink to paper/external doc in code.\nimport * is fine if using most of a module; use __all__ for internal symbols.\nNo automatic linters/formatters (autopep8, yapf, etc). Manual layout only.\nKeep PRs small; discuss controversial changes on forums first.\n\nWhen documenting functions, classes, and whatnot, use the docments spec.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#core-concept",
+    "href": "core.html#core-concept",
+    "title": "core",
+    "section": "Core Concept",
+    "text": "Core Concept\ndocments lets you document parameters with # comments directly in function signatures, instead of repeating parameter names in numpy/Google-style docstrings:\ndef add(\n    a:int, # the 1st number to add\n    b=0,   # the 2nd number to add\n)-&gt;int:    # the result of adding `a` to `b`\n    \"The sum of two numbers.\"\n    return a+b\nMulti-line comments above a parameter are also supported:\ndef add(\n    # The first operand\n    a:int,\n    # This is the second operand.\n    # Passing negative is equivalent to subtraction.\n    b:int,\n)-&gt;int: # Result\n    \"Add `a` to `b`\"\n    return a+b\nWorks with: functions, async functions, classes (__init__), methods, dataclasses, @delegates, numpy-style docstrings, and mixed styles.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#api-reference",
+    "href": "core.html#api-reference",
+    "title": "core",
+    "section": "API Reference",
+    "text": "API Reference\n\ndocments(s, full=False, eval_str=False, returns=True, args_kwargs=False) → AttrDict\nThe primary function. Extracts parameter documentation from s.\n\n\n\n\n\n\n\n\n\nParam\nType\nDefault\nDetails\n\n\n\n\ns\ncallable/class\n—\nFunction, class, or method to extract docs from\n\n\nfull\nbool\nFalse\nIf True, values are dicts with keys anno, default, docment. If False, values are just the docment string (or None). When full=True, args_kwargs=True is always set.\n\n\neval_str\nbool\nFalse\nEvaluate stringified annotations (PEP 563 / from __future__ import annotations)\n\n\nreturns\nbool\nTrue\nInclude 'return' key in result\n\n\nargs_kwargs\nbool\nFalse\nInclude *args/**kwargs docs\n\n\n\nReturns: AttrDict — keys are param names (+ 'return'), values depend on full.\ndocments(add)\n# {'a': 'the 1st number to add', 'b': 'the 2nd number to add', 'return': 'the result of adding `a` to `b`'}\n\ndocments(add, full=True)\n# {'a': {'anno': int, 'default': inspect._empty, 'docment': 'the 1st number to add'}, ...}\n\ndocments(add, args_kwargs=True)  # includes *args, **kwargs entries\nBehaviors: - For classes (non-dataclass): extracts from __init__ - Follows __delwrap__ chain (from @delegates) to collect delegated param docs - Numpy-style docstrings are parsed and merged (inline comments take priority) - Builtins return empty/None values: docments(str) → {'args': None, 'kwargs': None, ...} - Type annotation is inferred from default value when full=True and annotation is missing\n\n\n\ndocstring(sym) → str|None\nGet the docstring for sym (functions and classes).\ndocstring(add)  # \"The sum of two numbers.\"\n\n\n\nparse_docstring(sym) → dict\nParse a numpy-style docstring from sym into a structured dict.\n\n\n\nsig_source(obj) → str\nGet full source of signature line(s) for a function or class (not the body).\nprint(sig_source(my_func))\n# def my_func(\n#     a:int, # first\n#     b:str, # second\n# )-&gt;int:\n\n\n\nextract_docstrings(code) → dict\nParse source code string. Returns {name: (docstring, params_str)} for each function/class/method. Private methods (starting with _) are excluded (except __init__, which is folded into the class). Module-level docstring is stored under '_module'.\nextract_docstrings(\"def foo(a, b):\\n    'Does foo'\\n    ...\")\n# {'foo': ('Does foo', 'a, b')}\n\n\n\nsig2str(func, maxline=110) → str\nGenerate a formatted function signature string with docments as inline comments. Wraps lines to maxline.\nprint(sig2str(my_func))\n# def my_func(\n#     a:int, # first\n#     b:str='' # second\n# )-&gt;int: # result\n\n\n\nget_name(obj) → str\nGet the name of obj (uses __name__, __qualname__, or type(obj).__name__).\n\n\nqual_name(obj) → str\nGet the qualified name of obj (e.g. 'fastcore.docscrape').\n\n\nget_source(s) → str\nGet source code for string, function object, or dataclass s.\n\n\nisdataclass(s) → bool\nCheck if s is a dataclass type (not an instance).\n\n\nget_dataclass_source(s) → str\nGet source code for dataclass s.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#rendering-classes",
+    "href": "core.html#rendering-classes",
+    "title": "core",
+    "section": "Rendering Classes",
+    "text": "Rendering Classes\n\nDocmentTbl(obj, verbose=True, returns=True)\nRenders a markdown table of parameters with columns: Name, Type, Default, Details. Empty columns are auto-hidden. Renders via _repr_markdown_() in notebooks.\n\n\n\n\n\n\n\n\n\nParam\nType\nDefault\nDetails\n\n\n\n\nobj\ncallable/class\n—\nObject to document\n\n\nverbose\nbool\nTrue\nShow all columns (Type, Default, Details) vs just Details\n\n\nreturns\nbool\nTrue\nShow Returns row (ignored for dataclasses)\n\n\n\nDocmentTbl(my_func)  # Renders markdown table in notebook\nstr(DocmentTbl(my_func))  # Get markdown string\nProperties: has_docment, has_return, hdr_str, params_str, return_str\n\n\n\nDocmentList(obj)\nRenders a markdown bullet list of parameters.\nDocmentList(my_func)\n# - `a:int`   *first*\n# - `b:str=foo`   *second*\n# - `return:int`   *result*\n\n\n\nDocmentText(obj, maxline=110, docstring=True)\nRenders the formatted signature with inline docment comments, wrapping to maxline.\nDocmentText(my_func)\n# def my_func(\n#     a:int, # first\n#     b:str='foo', # second\n# )-&gt;int: # result\n#     \"Do a thing\"\n\n\n\n\n\n\n\n\n\nParam\nType\nDefault\nDetails\n\n\n\n\nobj\ncallable/class\n—\nObject to render\n\n\nmaxline\nint\n110\nMax line length before wrapping\n\n\ndocstring\nbool\nTrue\nInclude the docstring below signature\n\n\n\nProperties: params → list of (formatted_param, docment) tuples; _ret_str → formatted return string.\n\n\n\nShowDocRenderer(sym, name=None, title_level=3, maxline=110)\nBase renderer. Extracts and stores all doc info for sym: - self.nm — qualified name - self.sig — inspect.Signature - self.docs — docstring - self.dm — DocmentText instance - self.fn — full name - self.isfunc — whether it’s a function\n\n\nMarkdownRenderer(sym, name=None, title_level=3, maxline=110)\nSubclass of ShowDocRenderer. Renders as markdown: signature in a fenced code block + italicized docstring.\nMarkdownRenderer(my_func)\n# ```python\n# def my_func(\n#     a:int, # first\n# )-&gt;int: # result\n# ```\n# *Do a thing*",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#usage-notes",
+    "href": "core.html#usage-notes",
+    "title": "core",
+    "section": "Usage Notes",
+    "text": "Usage Notes\n\n@delegates support: docments automatically follows the __delwrap__ chain, so delegated params from wrapped functions are included.\nDataclass caveat: If the class was defined in a notebook, docments won’t contain param comments until the notebook is converted to a module (source code unavailable at runtime).\nMixed styles: You can freely mix inline # comments and numpy-style docstring params. Inline comments take priority for any param documented in both places.\nAll rendering classes inherit from _DocmentBase which calls docments(obj, full=True, eval_str=True) and stores result in self.dm.\n\nTrade-off: @dataclass vs regular class with store_attr()\n在 solveit/notebook 环境中，@dataclass 的 docments 注释（# 注释）无法被 docments() 提取，因为 dataclass 在 notebook 里定义时没有源码文件可供解析。docments(MyDataclass) 会返回 None。\n解决方案：用普通类 + store_attr() 代替 @dataclass，这样 docments 可以正常工作。\n# ❌ Dataclass — docments 在 notebook 里不可用\n@dataclass\nclass Video:\n    id:str          # Video ID\n    port:int        # SSH Port\n\n# ✅ 普通类 + store_attr — docments 正常工作\nclass Video:\n    def __init__(self,\n        id:str,          # Video ID\n        port:int,        # SSH Port\n    ): store_attr()\n用 @docs 装饰器可以给类的方法加 docstring（通过 _docs 字典），但它不影响字段的 docments。\n\ndirectory",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#database",
+    "href": "core.html#database",
+    "title": "core",
+    "section": "Database",
+    "text": "Database\n\n\nRunFrame\ndef RunFrame(\n    *args, **kwargs\n):\nInitialize self. See help(type(self)) for accurate signature.\n\n\n\nRun\ndef Run(\n    *args, **kwargs\n):\nInitialize self. See help(type(self)) for accurate signature.\n\n\n\nFrame\ndef Frame(\n    *args, **kwargs\n):\nInitialize self. See help(type(self)) for accurate signature.\n\n\n\nVideo\ndef Video(\n    *args, **kwargs\n):\nInitialize self. See help(type(self)) for accurate signature.\n\n!rm db.db\ndb = database('db.db'); db\n\n&lt;Database &lt;apsw.Connection \"/app/data/vlm-monitor/nbs/db.db\"&gt;&gt;\n\n\n\n??Queryable.schema\n\n\nType:        property\nString form: &lt;property object&gt;\nSource:     \n# Queryable.schema.fget\n@property\ndef schema(self) -&gt; str:\n    \"SQL schema for this table or view.\"\n    return self.db.execute(\n        \"select sql from sqlite_master where name = ?\", (self.name,)\n    ).fetchone()[0]\n\n\n\n\n@patch(as_prop=True)\ndef schema(self:Queryable) -&gt; str:\n    \"SQL schema for this table or view.\"\n    return hl_md(self.db.execute(\n        \"select sql from sqlite_master where name = ?\", (self.name,)\n    ).fetchone()[0], lang='sql')\n\n\nvideos = db.create(Video, transform=True); videos.schema\n\n\nCREATE TABLE [video] (\n   [id] INTEGER PRIMARY KEY,\n   [title] TEXT,\n   [overview] TEXT,\n   [transcript] TEXT,\n   [length] INTEGER,\n   [sample_rate] INTEGER\n)\n\n\n\n\nframes = db.create(Frame, transform=True, foreign_keys=[('video_id', 'video', 'id')]); frames.schema\n\n\nCREATE TABLE [frame] (\n   [id] INTEGER PRIMARY KEY,\n   [video_id] INTEGER REFERENCES [video]([id]) ON UPDATE CASCADE ON DELETE CASCADE,\n   [frame_number] INTEGER,\n   [subtitle] TEXT\n)\n\n\n\n\nruns = db.create(Run, transform=True); runs.schema\n\n\nCREATE TABLE [run] (\n   [id] INTEGER PRIMARY KEY,\n   [deploy_time] TEXT,\n   [finish_time] TEXT,\n   [request_timer] TEXT,\n   [video_id] INTEGER,\n   [model] TEXT,\n   [usage] TEXT,\n   [num_frames] INTEGER,\n   [description] TEXT\n)\n\n\n\n\nrunframes = db.create(RunFrame, pk=['run_id', 'frame_id', 'type'], foreign_keys=[('run_id', 'run', 'id'), ('frame_id', 'frame', 'id')], transform=True); runframes.schema\n\n\nCREATE TABLE [run_frame] (\n   [run_id] INTEGER REFERENCES [run]([id]) ON UPDATE CASCADE ON DELETE CASCADE,\n   [frame_id] INTEGER REFERENCES [frame]([id]) ON UPDATE CASCADE ON DELETE CASCADE,\n   [type] TEXT,\n   [system_prompt] TEXT,\n   [prompt] TEXT,\n   [description] TEXT,\n   [usage] TEXT,\n   PRIMARY KEY ([run_id], [frame_id], [type])\n)\n\n\n\n\n\n\nDBResources\ndef DBResources(\n    *args, **kwargs\n):\n\n\n\ninit_db\ndef init_db(\n    path:str | pathlib.Path='db.db', # Path to database\n)-&gt;DBResources:\nInitialize a database and return the database, as well as its videos, frames, runs, and runframes tables.\n\n# !rm db.db\no = init_db()\n\n\no.db\n\n&lt;Database &lt;apsw.Connection \"/app/data/vlm-monitor/nbs/db.db\"&gt;&gt;\n\n\n\no.videos.schema\n\n\nCREATE TABLE [video] (\n   [id] INTEGER PRIMARY KEY,\n   [title] TEXT,\n   [overview] TEXT,\n   [transcript] TEXT,\n   [length] INTEGER,\n   [sample_rate] INTEGER\n)",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "core.html#vlm",
+    "href": "core.html#vlm",
+    "title": "core",
+    "section": "VLM",
+    "text": "VLM\n\n?Msg\n\nObject `Msg` not found.",
+    "crumbs": [
+      "core"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "vlm-monitor",
+    "section": "",
+    "text": "This file will become your README and also the index of your documentation.",
+    "crumbs": [
+      "vlm-monitor"
+    ]
+  },
+  {
+    "objectID": "index.html#developer-guide",
+    "href": "index.html#developer-guide",
+    "title": "vlm-monitor",
+    "section": "Developer Guide",
+    "text": "Developer Guide\nIf you are new to using nbdev here are some useful pointers to get you started.\n\nInstall vlm_monitor in Development mode\n# make sure vlm_monitor package is installed in development mode\n$ pip install -e .\n\n# make changes under nbs/ directory\n# ...\n\n# compile to have changes apply to vlm_monitor\n$ nbdev_prepare",
+    "crumbs": [
+      "vlm-monitor"
+    ]
+  },
+  {
+    "objectID": "index.html#usage",
+    "href": "index.html#usage",
+    "title": "vlm-monitor",
+    "section": "Usage",
+    "text": "Usage\n\nInstallation\nInstall latest from the GitHub repository:\n$ pip install git+https://github.com/ForBo7/vlm-monitor.git\nor from conda\n$ conda install -c ForBo7 vlm_monitor\nor from pypi\n$ pip install vlm_monitor\n\n\nDocumentation\nDocumentation can be found hosted on this GitHub repository’s pages. Additionally you can find package manager specific guidelines on conda and pypi respectively.",
+    "crumbs": [
+      "vlm-monitor"
+    ]
+  },
+  {
+    "objectID": "index.html#how-to-use",
+    "href": "index.html#how-to-use",
+    "title": "vlm-monitor",
+    "section": "How to use",
+    "text": "How to use\nFill me in please! Don’t forget code examples:\n\n1+1\n\n2",
+    "crumbs": [
+      "vlm-monitor"
+    ]
+  }
+]
