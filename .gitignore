@@ -150,3 +150,10 @@ checklink/cookies.txt
 
 # Quarto
 .quarto
+
+# SolveIt
+/nbs/TEMPLATE.ipynb
+
+# Data
+*.db*
+*.json*
