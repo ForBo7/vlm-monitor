@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "vlm-monitor"
+  site-url: "https://ForBo7.github.io/vlm-monitor"
+  description: "A second set of eyes."
+  repo-branch: main
+  repo-url: "https://github.com/ForBo7/vlm-monitor"

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vlm-monitor"
+dynamic = ["version"]
+description = "A second set of eyes."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [{name = "Solveit", email = "nobody@fast.ai"}]
+keywords = ['nbdev']
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/ForBo7/vlm-monitor"
+Documentation = "https://ForBo7.github.io/vlm-monitor/"
+
+[project.entry-points.nbdev]
+vlm_monitor = "vlm_monitor._modidx:d"
+
+[tool.setuptools.dynamic]
+version = {attr = "vlm_monitor.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["vlm_monitor"]
+
+[tool.nbdev]
