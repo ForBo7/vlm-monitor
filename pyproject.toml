@@ -9,13 +9,13 @@ description = "A second set of eyes."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
-authors = [{name = "Solveit", email = "nobody@fast.ai"}]
-keywords = ['nbdev']
+authors = [{name = "Salman Naqvi", email = "s1148093@s.eduhk.hk"}]
+keywords = ['nbdev', 'vlms', 'llms', 'computer vision', 'natural language processing']
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = []
+dependencies = ['fastcore','fastlite','fastllm','fastprogress','tiktoken','pycachy']
 
 [project.urls]
 Repository = "https://github.com/ForBo7/vlm-monitor"
@@ -31,3 +31,5 @@ version = {attr = "vlm_monitor.__version__"}
 include = ["vlm_monitor"]
 
 [tool.nbdev]
+allowed_metadata_keys = ['solveit']
+allowed_cell_metadata_keys = ['solveit_ai']
