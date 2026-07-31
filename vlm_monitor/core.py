@@ -6,7 +6,7 @@ Docs: https://ForBo7.github.io/vlm-monitorcore.html.md"""
 
 # %% auto #0
 __all__ = ['tz', 'Video', 'Frame', 'Run', 'RunFrame', 'DBResources', 'init_db', 'user', 'assistant', 'stream', 'img2b64',
-           'session', 'deploy_run']
+           'session', 'deploy_run', 'summarize_window']
 
 # %% ../nbs/00_core.ipynb #1654310c
 from fastcore.all import *
@@ -157,3 +157,63 @@ async def deploy_run(
 
     if not cache: enable_cachy(); print('!! Cache enabled')
     return _finish_run(run.id)
+
+# %% ../nbs/00_core.ipynb #552a05ab
+from tiktoken import encoding_for_model
+
+# %% ../nbs/00_core.ipynb #79240a71
+def _build_window(run_id:int, start:int, stop:int, step:int=1)->tuple[str,int]:
+    "Query runframes and build the window text with token count."
+    rows = L(runframes.rows_where(where='run_id=? AND frame_id>=? AND frame_id<?', where_args=(run_id, start, stop)))
+    grouped = rows.groupby(lambda r: r['frame_id'])
+    fids = sorted(grouped.keys())
+    if step > 1: fids = fids[::step]
+
+    window = ''
+    for fid in fids:
+        prefix = f'\n\nTimestamp ({fid}s)\n'
+        window += prefix + len(prefix.strip())*'='
+        for d in grouped[fid]: window += f"\n\n--\n\n{d['type'].upper()}\n\n{d['description']}"
+
+    enc = encoding_for_model('gpt-4o')
+    return window, len(enc.encode(window))
+
+# %% ../nbs/00_core.ipynb #87d7fe2a
+def _summary_header(run_id:int, start:int, stop:int, step:int, model:str, window:str, win_tokens:int, cache:bool, t0:datetime):
+    "Print summary run header box."
+    print(f'╭─ Summary Run #{run_id} ═══════════════════════╮\n│ Frames   {start}–{stop} (step {step})\n│ Model    {model}\n│ Window   {len(window)} chars / {win_tokens} tokens\n│ Cache    {cache}\n│ Start    {t0.strftime("%H:%M:%S")}\n╰──────────────────────────────────────────────╯')
+
+# %% ../nbs/00_core.ipynb #8ce0100c
+def _summary_footer(summary:str, win_tokens:int, t0:datetime, t1:datetime, cost:float):
+    "Print summary completion box."
+    enc = encoding_for_model('gpt-4o')
+    sum_tokens = len(enc.encode(summary))
+    reduction = (1 - sum_tokens/win_tokens)*100 if win_tokens else 0
+    elapsed = t1 - t0
+    print(f'╭─ Summary Complete ═══════════════════════════╮\n│ Finish   {t1.strftime("%H:%M:%S")}\n│ Elapsed  {str(elapsed).split(".")[0]}\n│ Summary  {len(summary)} chars / {sum_tokens} tokens\n│ Reduced  {reduction:.1f}%\n│ Cost     ${cost:.4f} (HKD {cost*7.84:.2f})\n╰──────────────────────────────────────────────╯')
+
+# %% ../nbs/00_core.ipynb #9faeeaea
+async def summarize_window(
+    run_id:int,
+    start:int,
+    stop:int,
+    session,
+    sys_prompt:str,
+    step:int=1,
+    cache:bool=False,
+)->str:
+    "Summarize a window of frames from runframes. Returns summary text."
+    if not cache: disable_cachy()
+
+    window, win_tokens = _build_window(run_id, start, stop, step)
+    t0 = datetime.now(tz)
+    _summary_header(run_id, start, stop, step, session.keywords['model'], window, win_tokens, cache, t0)
+
+    r = await session([user(window)], system=sys_prompt)
+    t1 = datetime.now(tz)
+
+    if not cache: enable_cachy()
+
+    summary = r.message.text
+    _summary_footer(summary, win_tokens, t0, t1, r.usage.raw.get('cost', 0))
+    return summary
