@@ -7,3 +7,8 @@ website:
   description: "A second set of eyes."
   repo-branch: main
   repo-url: "https://github.com/ForBo7/vlm-monitor"
+
+format-links:
+  - html
+  - format: commonmark
+    text: Markdown
