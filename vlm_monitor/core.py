@@ -15,7 +15,7 @@ from fastcore.all import *
 # %% ../nbs/00_core.ipynb #22ed8677
 class Video: id:int; title:str=''; overview:str=''; transcript:str=''; length:int=0; sample_rate:int=0; path:str=''
 class Frame: id:int; video_id:int; frame_number:int; subtitle:str=''
-class Run: id:int; deploy_time:str; finish_time:str; start_time:str; total_duration:str; video_id:int; model:str; usage:str; num_frames:int; description:str
+class Run: id:int; deploy_time:str; finish_time:str; start_time:str; total_duration:str; video_id:int; model:str; usage:str; num_frames:int; start_sec:int=0; end_sec:int=0; step:int=1; description:str
 class RunFrame: run_id:int; frame_id:int; type:str; system_prompt:str; prompt:str; description:str; usage:str
 
 # %% ../nbs/00_core.ipynb #83cc5be2
@@ -276,7 +276,7 @@ async def deploy_run(
     if not cache: disable_cachy(); print('!! Cache disabled')
     else: print('!! Using cache')
 
-    run = db.t.run.insert(deploy_time=datetime.now(tz), video_id=video_id, model=session.keywords['model'], num_frames=(stop-start)//step)
+    run = db.t.run.insert(deploy_time=datetime.now(tz), video_id=video_id, model=session.keywords['model'], num_frames=(stop-start)//step, start_sec=start, end_sec=stop, step=step)
     _run_header(run, session.keywords['model'], start, stop, step, cache)
 
     for p in (mb:=master_bar(fpath[start:stop:step])):
