@@ -21,7 +21,7 @@ class RunFrame: run_id:int; frame_id:int; type:str; system_prompt:str; prompt:st
 # %% ../nbs/00_core.ipynb #83cc5be2
 from fastlite import *
 
-# %% ../nbs/00_core.ipynb #60fdf29c
+# %% ../nbs/00_core.ipynb #beef46f7
 @patch(as_prop=True)
 def schema(self:Queryable) -> str:
     "SQL schema for this table or view."
