@@ -1,4 +1,4 @@
-"""Fill in a module description here
+"""The source for this library
 
 Docs: https://ForBo7.github.io/vlm-monitor/core.html.md"""
 
@@ -7,16 +7,16 @@ Docs: https://ForBo7.github.io/vlm-monitor/core.html.md"""
 # %% auto #0
 __all__ = ['tz', 'Video', 'Frame', 'Run', 'RunFrame', 'init_db', 'view_col', 'filter_paths', 'time2sec', 'srt2tsv', 'tsv2dict',
            'populate_db', 'user', 'assistant', 'stream', 'img2b64', 'session', 'compute_usage', 'deploy_run',
-           'summarize_window']
+           'summarize_window', 'summarize_run']
 
 # %% ../nbs/00_core.ipynb #1654310c
 from fastcore.all import *
 
 # %% ../nbs/00_core.ipynb #22ed8677
-class Video: id:int; title:str=''; overview:str=''; transcript:str=''; length:int=0; sample_rate:int=0; path:str=''
+class Video: id:int; title:str=''; overview:str=''; description:str=''; transcript:str=''; length:int=0; sample_rate:int=0; path:str=''
 class Frame: id:int; video_id:int; frame_number:int; subtitle:str=''
-class Run: id:int; deploy_time:str; finish_time:str; start_time:str; total_duration:str; video_id:int; model:str; usage:str; num_frames:int; start_sec:int=0; end_sec:int=0; step:int=1; description:str
-class RunFrame: run_id:int; frame_id:int; type:str; system_prompt:str; prompt:str; description:str; usage:str
+class Run: id:int; deploy_time:str; finish_time:str; start_time:str; total_duration:str; video_id:int; model:str; usage:str; num_frames:int; start_sec:int=0; end_sec:int=0; step:int=1; description:str=''
+class RunFrame: run_id:int; frame_id:int; type:str; system_prompt:str; prompt:str; description:str; usage:str; ratelimited:bool=False
 
 # %% ../nbs/00_core.ipynb #83cc5be2
 from fastlite import *
@@ -42,18 +42,24 @@ def init_db(
     db.create(Frame, transform=True, foreign_keys=[('video_id', 'video', 'id')])
     db.create(Run, transform=True)
     db.create(RunFrame, pk=['run_id', 'frame_id', 'type'], foreign_keys=[('run_id', 'run', 'id'), ('frame_id', 'frame', 'id')], transform=True)
+    for t in db.t: t.dataclass()
     return db
-    
 
 # %% ../nbs/00_core.ipynb #075b0bdc
 from operator import attrgetter, itemgetter
 
 # %% ../nbs/00_core.ipynb #4d9de4a5
-def view_col(table, col, where=None, where_args=None):
+def view_col(
+    table:Table, # Database table
+    col:str, # Column to view
+    where:str|None=None, # SQL lookup statement
+    where_args:str|None=None # SQL lookup statement arguments
+)->list: # List of rows
+    "Return all rows of a given column in table, optionally setting `where`."
     if where is None: return L(table()).map(attrgetter(col))
-    else: return L(table.rows_where(where=where, where_args=where_args)).map(itemgetter(col))
+    else: return L(table(where=where, where_args=where_args)).map(itemgetter(col))
 
-# %% ../nbs/00_core.ipynb #94868918
+# %% ../nbs/00_core.ipynb #3f87591c
 def filter_paths(
     paths:list[Path], # List of paths to filter
     chs:str='.', # Characters to check for in the component
@@ -90,7 +96,7 @@ def srt2tsv(
         res += f"{start}→{end}\t{spk}\t{text}\n"
     return res
 
-# %% ../nbs/00_core.ipynb #52856773
+# %% ../nbs/00_core.ipynb #2dd4f2d8
 def tsv2dict(
     tsv:str, # TSV string with columns: timerange, speaker, text
     max_len:int, # Max frame number to cover
@@ -120,8 +126,6 @@ def populate_db(
 )->None:
     "Populate video and frame tables from a list of video directories."
     t = db.t
-    t.video.dataclass(); t.frame.dataclass()
-    t.run.dataclass(); t.runframe.dataclass()
     filter_trans = partial(filter_paths, chs=trans_suffix, comp='suffix', negate=False)
     filter_dots = partial(filter_paths, chs='.', comp='stem')
     for p in (mb:=master_bar(paths)):
@@ -203,13 +207,55 @@ def session(
     "Create a stream partial with preset model/kwargs."
     return partial(stream, **kwargs)
 
-# %% ../nbs/00_core.ipynb #b024c39d
-async def _process_frame(db, session, run_id:int, video_id:int, p:Path, prompt:str, prompt_type:str):
+# %% ../nbs/00_core.ipynb #f601bfde
+from fastspec.errors import APIError
+
+# %% ../nbs/00_core.ipynb #da7dcbd4
+async def _process_frame(p:Path, db, session, run_id:int, video_id:int, prompt:str, prompt_type:str, include_subs:bool=True):
     "Run VLM on a single frame and store the result."
-    r = await session([user(prompt, img=img2b64(p))])
     fnum = int(p.stem.split('_')[1])
     frame = db.t.frame.selectone('video_id=? AND frame_number=?', (video_id, fnum))
-    db.t.run_frame.insert(run_id=run_id, frame_id=frame.id, type=prompt_type, prompt=prompt, description=r.message.text, usage=r.usage.raw)
+    if include_subs:
+        sub = frame.subtitle or '[No speech]'
+        prompt = f"{prompt}\n\nSubtitle: {sub}"
+    try:
+        r = await session([user(prompt, img=img2b64(p))])
+        db.t.run_frame.upsert(run_id=run_id, frame_id=frame.id, type=prompt_type, prompt=prompt, description=r.message.text, usage=r.usage.raw, ratelimited=False)
+    except APIError as e:
+        sc = getattr(e,'status_code',None)
+        if sc==429:
+            db.t.run_frame.upsert(run_id=run_id, frame_id=frame.id, type=prompt_type, prompt=prompt, description='', ratelimited=True)
+            print(f'!! Rate limited: frame {fnum}')
+        elif sc==402:
+            print(f'!! Insufficient credits — stopped at frame {fnum}')
+            raise
+        else: raise
+
+# %% ../nbs/00_core.ipynb #c9848991
+async def _run_batch(frames:L, db, session, run_id:int, video_id:int, prompt:str, prompt_type:str, include_subs:bool, n_workers:int, pause:float):
+    "Run _process_frame across a batch of frame paths in parallel."
+    done = 0
+    async for i,r in parallel_async_gen(_process_frame, frames, db, session, run_id, video_id,
+                                         prompt, prompt_type, include_subs,
+                                         n_workers=n_workers, pause=pause):
+        done += 1; print(f'\r{done}/{len(frames)}', end='', flush=True)
+    print()
+
+# %% ../nbs/00_core.ipynb #b7d81e16
+async def _retry_ratelimited(db, video_path:Path, run_id:int, session, prompt:str, prompt_type:str, include_subs:bool, n_workers:int, pause:float, max_retries:int=2):
+    "Retry rate-limited frames up to max_retries times."
+    for attempt in range(max_retries):
+        rl_rows = L(db.t.run_frame('run_id=? AND ratelimited=1', (run_id,)))
+        if not rl_rows: break
+        rl_fids = rl_rows.map(itemgetter('frame_id'))
+        ph = ','.join('?'*len(rl_fids))
+        rl_frames = L(db.t.frame(f'id IN ({ph})', tuple(rl_fids)))
+        rl_paths = rl_frames.map(lambda f: video_path/f'frame_{f["frame_number"]:06d}.jpg')
+        print(f'!! Retrying {len(rl_paths)} rate-limited frames (attempt {attempt+1}/{max_retries})')
+        try: await _run_batch(rl_paths, db, session, run_id, video_id, prompt, prompt_type, include_subs, n_workers, pause)
+        except APIError as e:
+            if getattr(e,'status_code',None)!=402: raise
+            break
 
 # %% ../nbs/00_core.ipynb #2071c8e6
 from datetime import datetime
@@ -226,7 +272,7 @@ def _run_header(run, model:str, start:int, stop:int, step:int, cache:bool):
 # %% ../nbs/00_core.ipynb #494b389e
 def compute_usage(db, run_id:int)->str:
     "Aggregate usage stats across all frames in a run. Returns JSON string."
-    usgs = L(db.t.run_frame.rows_where('run_id=?', (run_id,))).map(lambda r: loads(r['usage']))
+    usgs = L(db.t.run_frame('run_id=? AND ratelimited=0', (run_id,))).map(lambda r: loads(r.usage))
     if not usgs: return '{}'
     tot = {k: ({k2:0 for k2 in v} if isinstance(v,dict) else 0) for k,v in usgs[0].items()}
     for u in usgs:
@@ -258,6 +304,7 @@ from typing import Callable
 from fastprogress.fastprogress import NBMasterBar as master_bar
 
 # %% ../nbs/00_core.ipynb #2a3df41e
+from fastcore.parallel import parallel_async_gen
 async def deploy_run(
     video_id:int,
     db:Database,
@@ -268,6 +315,10 @@ async def deploy_run(
     stop:int|None=None,
     step:int=1,
     cache:bool=False,
+    include_subs:bool=True,
+    n_workers:int=8,
+    pause:float=3,
+    max_retries:int=2,
 )->Run:
     "Run a single prompt across a range of frames, storing results in the database."
     video = db.t.video[video_id]
@@ -279,32 +330,52 @@ async def deploy_run(
     run = db.t.run.insert(deploy_time=datetime.now(tz), video_id=video_id, model=session.keywords['model'], num_frames=(stop-start)//step, start_sec=start, end_sec=stop, step=step)
     _run_header(run, session.keywords['model'], start, stop, step, cache)
 
-    for p in (mb:=master_bar(fpath[start:stop:step])):
-        mb.main_bar.comment = f'frame {p.stem.split("_")[1]}'
-        await _process_frame(db, session, run.id, video_id, p, prompt, prompt_type)
+    frames = fpath[start:stop:step]
+    try: await _run_batch(frames, db, session, run.id, video_id, prompt, prompt_type, include_subs, n_workers, pause)
+    except APIError as e:
+        if getattr(e,'status_code',None)!=402: raise
+
+    await _retry_ratelimited(db, Path(video.path), run.id, session, prompt, prompt_type, include_subs, n_workers, pause, max_retries)
 
     if not cache: enable_cachy(); print('!! Cache enabled')
     return _finish_run(db, run.id)
 
+
 # %% ../nbs/00_core.ipynb #552a05ab
 from tiktoken import encoding_for_model
 
+# %% ../nbs/00_core.ipynb #c561ac6e
+def _get_runframes(
+    db:Database,
+    run_ids:int|list[int],
+    start:int|None=None,
+    stop:int|None=None,
+)->L:
+    "Query runframes for given run(s), join with frame table for frame_number, group by frame_number."
+    if isinstance(run_ids, int): run_ids = [run_ids]
+    ph = ','.join('?' * len(run_ids))
+    rows = L(db.t.run_frame(f'run_id IN ({ph}) AND ratelimited=0', tuple(run_ids)))
+    fids = sorted(set(r.frame_id for r in rows))
+    fn_map = {f.id: f.frame_number for f in db.t.frame(f'id IN ({",".join("?"*len(fids))})', tuple(fids))}
+    grouped = rows.groupby(lambda r: fn_map[r.frame_id])
+    fnums = sorted(grouped.keys())
+    if start is not None: fnums = [f for f in fnums if f >= start]
+    if stop is not None: fnums = [f for f in fnums if f <= stop]
+    return L((fn, L(grouped[fn])) for fn in fnums)
+
 # %% ../nbs/00_core.ipynb #79240a71
-def _build_window(db, run_id:int, start:int, stop:int, step:int=1)->tuple[str,int]:
-    "Query runframes and build the window text with token count."
-    rows = L(db.t.run_frame.rows_where(where='run_id=? AND frame_id>=? AND frame_id<?', where_args=(run_id, start, stop)))
-    grouped = rows.groupby(lambda r: r['frame_id'])
-    fids = sorted(grouped.keys())
-    if step > 1: fids = fids[::step]
-
+def _build_window(
+    runframes,
+    step:int=1,
+)->str:
+    "Build window text from grouped runframes."
     window = ''
-    for fid in fids:
-        prefix = f'\n\nTimestamp ({fid}s)\n'
-        window += prefix + len(prefix.strip())*'='
-        for d in grouped[fid]: window += f"\n\n--\n\n{d['type'].upper()}\n\n{d['description']}"
-
-    enc = encoding_for_model('gpt-4o')
-    return window, len(enc.encode(window))
+    for i,rf in runframes[::step]:
+        prefix = f'TIMESTAMP {i}s\n'
+        window += prefix+len(prefix.strip())*'='+'\n'
+        for r in rf:
+            window += '\n--\n'+f'{r.type.upper()}\n{r.description}'+'\n\n'
+    return window
 
 # %% ../nbs/00_core.ipynb #87d7fe2a
 def _summary_header(run_id:int, start:int, stop:int, step:int, model:str, window:str, win_tokens:int, cache:bool, t0:datetime):
@@ -323,26 +394,61 @@ def _summary_footer(summary:str, win_tokens:int, t0:datetime, t1:datetime, cost:
 # %% ../nbs/00_core.ipynb #9faeeaea
 async def summarize_window(
     db:Database,
-    run_id:int,
+    run_ids:int|list[int],
     start:int,
     stop:int,
-    session,
+    session:Callable,
     sys_prompt:str,
     step:int=1,
     cache:bool=False,
+    context:str='',
 )->str:
     "Summarize a window of frames from runframes. Returns summary text."
     if not cache: disable_cachy()
-
-    window, win_tokens = _build_window(db, run_id, start, stop, step)
+    rfs = _get_runframes(db, run_ids, start, stop)
+    window = _build_window(rfs, step)
+    if context: window = f'PRIOR CONTEXT\n{"="*13}\n{context}\n\n{window}'
+    win_tokens = len(encoding_for_model('gpt-4o').encode(window))
     t0 = datetime.now(tz)
-    _summary_header(run_id, start, stop, step, session.keywords['model'], window, win_tokens, cache, t0)
-
+    label = run_ids if isinstance(run_ids, int) else f'{run_ids[0]}+{len(run_ids)-1}more'
+    _summary_header(label, start, stop, step, session.keywords['model'], window, win_tokens, cache, t0)
     r = await session([user(window)], system=sys_prompt)
     t1 = datetime.now(tz)
-
     if not cache: enable_cachy()
-
     summary = r.message.text
     _summary_footer(summary, win_tokens, t0, t1, r.usage.raw.get('cost', 0))
     return summary
+
+# %% ../nbs/00_core.ipynb #a2d6ea2a
+from IPython.display import clear_output
+
+async def summarize_run(
+    db:Database,
+    session:Callable,
+    sys_prompt:str,
+    run_id:int|None=None,
+    video_id:int|None=None,
+    window_sec:int=300,
+    step:int=1,
+    cache:bool=False,
+)->str:
+    "Summarize a single run or all frames for a video in rolling windows."
+    if run_id is not None: rids = [run_id]
+    elif video_id is not None: rids = L(db.t.run('video_id=?', (video_id,))).map(lambda r: r.id)
+    else: raise ValueError('Either run_id or video_id required')
+    rfs = _get_runframes(db, rids)
+    if not rfs: return ''
+    fnums = rfs.itemgot(0)
+    full_summary = ''
+    chunks = list(chunked(fnums, window_sec))
+    for chunk in (mb:=master_bar(chunks)):
+        mb.main_bar.comment = f'window {chunk[0]}–{chunk[-1]}s'
+        summary = await summarize_window(db, rids, chunk[0], chunk[-1], session, sys_prompt, step=step, cache=cache, context=full_summary)
+        heading = f'[{chunk[0]}–{chunk[-1]}s]'
+        summary = summary.strip()
+        full_summary = full_summary + f'\n\n{heading} {summary}' if full_summary else f'{heading} {summary}' if summary else ''
+        clear_output(wait=True)
+        print(full_summary)
+    if run_id is not None: db.t.run.update(id=run_id, description=full_summary)
+    else: db.t.video.update(id=video_id, description=full_summary)
+    return full_summary
