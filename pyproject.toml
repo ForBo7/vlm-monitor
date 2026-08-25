@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = ['fastcore==2.2.13','fastlite','python-fastllm==0.0.36','fastprogress','tiktoken','pycachy']
+dependencies = ['fastcore==2.2.13','fastlite','python-fastllm==0.0.36','aidialog==0.0.6','fastprogress','tiktoken','pycachy']
 
 [project.urls]
 Repository = "https://github.com/ForBo7/vlm-monitor"
