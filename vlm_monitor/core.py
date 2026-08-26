@@ -1,4 +1,4 @@
-"""The source for this library
+"""The source of truth
 
 Docs: https://ForBo7.github.io/vlm-monitor/core.html.md"""
 
