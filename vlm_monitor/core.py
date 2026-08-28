@@ -483,16 +483,16 @@ from IPython.display import clear_output
 
 # %% ../nbs/00_core.ipynb #894aa0ba
 async def summarize_run(
-    db:Database,
-    session:Callable,
-    sys_prompt:str,
-    perspective:str='', # Key for storing this summary in description JSON
-    run_id:int|None=None,
-    video_id:int|None=None,
-    window_sec:int=300,
-    step:int=1,
-    cache:bool=False,
-)->str:
+    db:Database, # Database object
+    session:Callable, # Stream session partial
+    sys_prompt:str, # System prompt for the summarizing LLM
+    perspective:str, # Key for storing this summary in description JSON
+    run_id:int|None=None, # Single run ID to summarize
+    video_id:int|None=None, # Summarize all runs for this video
+    window_sec:int=300, # Rolling window size in seconds
+    step:int=1, # Subsample every Nth frame within windows
+    cache:bool=False, # Whether to use HTTP cache
+)->str: # Full concatenated summary across all windows
     "Summarize a single run or all frames for a video in rolling windows."
     if run_id is not None: rids = [run_id]
     elif video_id is not None: rids = L(db.t.run('video_id=?', (video_id,))).map(lambda r: r.id)
